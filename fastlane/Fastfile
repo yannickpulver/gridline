@@ -1,0 +1,118 @@
+
+platform :android do
+    lane :increment_build do
+        increment_version_code(
+            gradle_file_path: "composeApp/build.gradle.kts",
+            version_code: ENV["GITHUB_RUN_NUMBER"]
+        )
+    end
+
+    desc "Build the Android app"
+    lane :build do |options|
+        increment_build
+        gradle(task: "bundleRelease")
+    end
+
+    desc "Deploy a new version to the Google Play Store"
+    lane :deploy do
+        build
+        # Upload to the Play Store using supply
+        supply(
+          track: "internal",
+          aab: "composeApp/build/outputs/bundle/release/composeApp-release.aab",
+          skip_upload_metadata: true,
+          skip_upload_images: true,
+          skip_upload_screenshots: true,
+          skip_upload_apk: true
+        )
+    end
+end
+
+platform :ios do
+    lane :increment_build do
+        if File.exist?("../VERSION")
+            version_number = File.read("../VERSION").strip
+            increment_version_number(
+                version_number: version_number,
+                xcodeproj: "iosApp/iosApp.xcodeproj"
+            )
+        else
+            UI.important "VERSION file not found, not setting version"
+        end
+
+        build_number = Time.new.utc.strftime("%Y%m%d.%H%M")
+        increment_build_number(
+            build_number: build_number,
+            xcodeproj: "iosApp/iosApp.xcodeproj"
+            )
+    end
+
+    # Had to uncheck "Automatically manage signing in XCode + select the certificate there for it to work"
+    desc "Build the iOS app"
+    lane :build do |options|
+        build_ios_app(
+            project: "iosApp/iosApp.xcodeproj",
+            export_options: {
+                provisioningProfiles: {
+                    "com.yannickpulver.gridline" => "match AppStore com.yannickpulver.gridline"
+                }
+            },
+        )
+    end
+
+    lane :deliver_store do |options|
+        deliver(
+              skip_screenshots: true,
+              skip_metadata: true,
+              copyright: "#{Time.now.year} Yannick Pulver"
+              submission_information: "{\"export_compliance_uses_encryption\": false, \"add_id_info_uses_idfa\": false }"
+          )
+    end
+
+    desc "Build and deploy the iOS app"
+    lane :deploy do |options|
+      setup_ci if ENV['CI']
+      increment_build
+      match # if ci is set, will run in readonly mode
+      build
+      deliver_store
+    end
+end
+
+platform :macos do
+    desc "Build Macos app"
+    lane :build do |options|
+        gradle(task: "packageReleaseDmg")
+    end
+
+#     lane :notarize_backup do |options|
+#         release_path = options[:release_path] || ENV["RELEASE_PATH"]
+#         apple_id     = options[:apple_id]     || ENV["APPLE_ID_NOTARIZATION"]
+#         password     = options[:password]     || ENV["NOTARIZATION_PWD"]
+#         team_id      = options[:team_id]      || ENV["APPSTORE_TEAM_ID"]
+#
+#         sh("xcrun notarytool submit #{release_path} --apple-id #{apple_id} --password #{password} --team-id #{team_id} --wait")
+#         sh("xcrun stapler staple #{release_path}")
+#     end
+
+    desc "Deploy"
+    lane :deploy_dmg do |options|
+        build
+        version_number = File.read("../VERSION").strip
+        notarize(
+            package: "composeApp/build/compose/binaries/main-release/dmg/Gridline-#{version_number}.dmg",
+            bundle_id: "com.yannickpulver.gridline",
+            api_key_path: "fastlane/mac-api-key.json",
+            print_log: "true"
+        )
+#         deliver(
+#             platform: "osx",
+#             skip_screenshots: true,
+#             skip_metadata: true,
+#             precheck_include_in_app_purchases: false,
+#             copyright: "#{Time.now.year} Yannick Pulver"
+#         )
+    end
+
+
+end

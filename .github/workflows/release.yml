@@ -1,0 +1,124 @@
+name: "Release"
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+
+#on:
+#  push:
+#    tags:
+#      - "v*"
+
+jobs:
+  deliverIos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Fastlane
+        run: |
+          gem install bundler
+          bundle install
+
+      - name: Build with Gradle
+        run: bundle exec fastlane ios deploy
+        env:
+          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          FASTLANE_PASSWORD: ${{ secrets.FASTLANE_PASSWORD }}
+          FASTLANE_USER: ${{ secrets.FASTLANE_USER }}
+          FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD: ${{ secrets.FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          TEAM_ID: ${{ secrets.TEAM_ID }}
+          ITC_TEAM_ID: ${{ secrets.ITC_TEAM_ID }}
+
+
+  deployAndroid:
+    if: false
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Fastlane
+        run: |
+          gem install bundler
+          bundle install
+      - name: Decode Keystore
+        id: decode_keystore
+        uses: timheuer/base64-to-file@v1
+        with:
+          fileName: 'composeApp/release.jks'
+          encodedString: ${{ secrets.ANDROID_KEYSTORE }}
+
+      - name: Write secret to file
+        run: echo "$KEY" > fastlane/play-console-credentials.json
+        env:
+          KEY: ${{ secrets.PLAY_CONSOLE_CREDENTIALS_JSON }}
+
+      - name: Build with Gradle
+        run: bundle exec fastlane android deploy
+
+  buildMac:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v3
+      - name: Download JBR
+        uses: carlosperate/download-file-action@v2
+        with:
+          file-url: 'https://cache-redirector.jetbrains.com/intellij-jbr/jbrsdk-17.0.10-osx-aarch64-b1171.14.tar.gz'
+          file-name: 'jbr-17.0.10.tar.gz'
+
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          java-version: 17
+          distribution: jdkfile
+          jdkFile: jbr-17.0.10.tar.gz
+          cache: gradle
+
+      - name: Install Fastlane
+        run: |
+          gem install bundler
+          bundle install
+
+      - name: Import signing certificate
+        uses: apple-actions/import-codesign-certs@v2
+        with:
+          p12-file-base64: ${{ secrets.SIGNING_CERTIFICATE_P12_DATA_MACOS }}
+          p12-password: ${{ secrets.SIGNING_CERTIFICATE_PASSWORD_MACOS }}
+
+      - name: Write secret to file
+        run: echo "$KEY" > fastlane/mac-api-key.json
+        env:
+          KEY: ${{ secrets.APPSTORE_CONNECT_API_JSON }}
+
+      - name: Build with Gradle
+        run: bundle exec fastlane macos deploy_dmg
+
+      - name: Upload DMG as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Gridline-dmg
+          path: composeApp/build/compose/binaries/main-release/dmg/*.dmg
+
+  release:
+    needs: [ buildMac ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - id: get_version
+        run: echo "version=$(cat VERSION)" >> $GITHUB_OUTPUT
+
+      - name: Download all workflow run artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Upload binaries to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: Gridline-dmg/*
+          tag: ${{ steps.get_version.outputs.version }}
+          overwrite: true
+          body: "Release ${{ steps.get_version.outputs.version }}"
+            
