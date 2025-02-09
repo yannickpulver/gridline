@@ -34,6 +34,7 @@ jobs:
           TEAM_ID: ${{ secrets.TEAM_ID }}
           ITC_TEAM_ID: ${{ secrets.ITC_TEAM_ID }}
           CERT_REPO: ${{ secrets.CERT_REPO }}
+          APPLE_ID_TESTFLIGHT: ${{ secrets.APPLE_ID_TESTFLIGHT }}
 
 
   deployAndroid:
