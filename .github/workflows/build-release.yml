@@ -115,11 +115,14 @@ jobs:
       - name: Download all workflow run artifacts
         uses: actions/download-artifact@v4
 
+      - name: Display structure of downloaded files
+        run: ls -R
+
       - name: Upload binaries to release
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ./Gridline-dmg/Gridline-{{ steps.get_version.outputs.version }}.dmg
+          file: "./Gridline-dmg/Gridline-${{ steps.get_version.outputs.version }}.dmg"
           tag: ${{ steps.get_version.outputs.version }}
           overwrite: true
           body: "Release ${{ steps.get_version.outputs.version }}"
