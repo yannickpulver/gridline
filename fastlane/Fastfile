@@ -61,10 +61,13 @@ platform :ios do
     end
 
     lane :deliver_store do |options|
-        deliver(
-              skip_screenshots: true,
-              skip_metadata: true,
-          )
+#         deliver(
+#               skip_screenshots: true,
+#               skip_metadata: true,
+#           )
+        upload_to_testflight(
+            skip_waiting_for_build_processing: true
+        )
     end
 
     desc "Build and deploy the iOS app"
