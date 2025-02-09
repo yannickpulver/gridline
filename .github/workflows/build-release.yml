@@ -118,7 +118,7 @@ jobs:
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: Gridline-dmg/*
+          file: ./Gridline-dmg/Gridline-{{ steps.get_version.outputs.version }}.dmg
           tag: ${{ steps.get_version.outputs.version }}
           overwrite: true
           body: "Release ${{ steps.get_version.outputs.version }}"
