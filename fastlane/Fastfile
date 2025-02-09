@@ -64,7 +64,7 @@ platform :ios do
         deliver(
               skip_screenshots: true,
               skip_metadata: true,
-              copyright: "#{Time.now.year} Yannick Pulver"
+              copyright: "#{Time.now.year} Yannick Pulver",
               submission_information: "{\"export_compliance_uses_encryption\": false, \"add_id_info_uses_idfa\": false }"
           )
     end
