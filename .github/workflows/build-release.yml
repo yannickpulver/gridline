@@ -38,7 +38,6 @@ jobs:
 
 
   deployAndroid:
-    if: false
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v3
@@ -46,6 +45,7 @@ jobs:
         run: |
           gem install bundler
           bundle install
+
       - name: Decode Keystore
         id: decode_keystore
         uses: timheuer/base64-to-file@v1
@@ -114,9 +114,6 @@ jobs:
 
       - name: Download all workflow run artifacts
         uses: actions/download-artifact@v4
-
-      - name: Display structure of downloaded files
-        run: ls -R
 
       - name: Upload binaries to release
         uses: svenstaro/upload-release-action@v2
