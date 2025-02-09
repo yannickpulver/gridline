@@ -33,6 +33,7 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           TEAM_ID: ${{ secrets.TEAM_ID }}
           ITC_TEAM_ID: ${{ secrets.ITC_TEAM_ID }}
+          CERT_REPO: ${{ secrets.CERT_REPO }}
 
 
   deployAndroid:
