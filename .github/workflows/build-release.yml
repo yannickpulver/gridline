@@ -48,9 +48,10 @@ jobs:
 
       - name: Decode Keystore
         id: decode_keystore
-        uses: timheuer/base64-to-file@v1
+        uses: timheuer/base64-to-file@v12
         with:
-          fileName: 'composeApp/release.jks'
+          fileName: 'release.jks'
+          fileDir: './composeApp/'
           encodedString: ${{ secrets.ANDROID_KEYSTORE }}
 
       - name: Write secret to file
