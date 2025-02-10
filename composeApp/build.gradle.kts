@@ -125,7 +125,7 @@ android {
         applicationId = "com.yannickpulver.gridline"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 13
+        versionCode = 14
         versionName = rootProject.file("VERSION").readText().trim()
     }
     packaging {

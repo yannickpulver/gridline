@@ -3,7 +3,7 @@ platform :android do
     lane :increment_build do
         increment_version_code(
             gradle_file_path: "composeApp/build.gradle.kts",
-            version_code: ENV["GITHUB_RUN_NUMBER"]
+            version_code: ENV["GITHUB_RUN_NUMBER"].to_i + 13 # existing bump
         )
     end
 
