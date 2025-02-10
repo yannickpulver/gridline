@@ -13,7 +13,7 @@ on:
 #      - "v*"
 
 jobs:
-  deliverIos:
+  deploy-ios:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v3
@@ -37,7 +37,7 @@ jobs:
           APPLE_ID_TESTFLIGHT: ${{ secrets.APPLE_ID_TESTFLIGHT }}
 
 
-  deployAndroid:
+  deploy-android:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v3
