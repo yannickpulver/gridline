@@ -12,7 +12,7 @@ Visual planner of you Instagram grid. Written in Kotlin Multiplatform & Compose 
   <img src="docs/images/mac-app-store.svg" alt="Download from Github Releases" height="50">
 </a>
 
-<hr>
+---
 
 <div style="display: flex; gap: 10px;">
   <img src="docs/images/screen-1.png" alt="Login Screen" width="200">
