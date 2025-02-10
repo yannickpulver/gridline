@@ -14,9 +14,11 @@ Visual planner of you Instagram grid. Written in Kotlin Multiplatform & Compose 
 
 <hr>
 
-<img src="docs/images/screen-1.png" width="200">
-<img src="docs/images/screen-2.png" width="200">
-<img src="docs/images/screen-3.png" width="200">
+<div style="display: flex; gap: 10px;">
+  <img src="docs/images/screen-1.png" alt="Login Screen" width="200">
+  <img src="docs/images/screen-2.png" alt="Feed Screen" width="200">
+  <img src="docs/images/screen-3.png" alt="Feed Screen while editing" width="200">
+</div>
 
 
 ## Build instructions
