@@ -25,3 +25,5 @@ Gridline.app.dSYM.zip
 Gridline.ipa
 fastlane/report.xml
 composeApp/release.jks
+composeApp/embedded.provisionprofile
+composeApp/runtime.provisionprofile
