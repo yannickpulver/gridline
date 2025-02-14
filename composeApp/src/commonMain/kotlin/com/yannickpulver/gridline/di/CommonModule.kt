@@ -34,7 +34,7 @@ val commonModule = module {
             install(Logging) {
                 logger = object : Logger {
                     override fun log(message: String) {
-                        co.touchlab.kermit.Logger.v(message, null, "HTTClient")
+                        co.touchlab.kermit.Logger.i(message, null, "HTTClient")
                     }
                 }
                 level = LogLevel.BODY
