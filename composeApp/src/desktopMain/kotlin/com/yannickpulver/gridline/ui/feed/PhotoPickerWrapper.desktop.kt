@@ -11,7 +11,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 actual fun PhotoPickerWrapper(
-    addImages: (List<ByteArray>) -> Unit,
+    addImages: (List<Pair<ByteArray, String>>) -> Unit,
     content: @Composable (onClick: (() -> Unit)) -> Unit
 ) {
     var showFilePicker by remember { mutableStateOf(false) }
@@ -21,7 +21,7 @@ actual fun PhotoPickerWrapper(
         showFilePicker = false
         scope.launch {
             val files = file.orEmpty().map {
-                it.getFileByteArray()
+                it.getFileByteArray() to it.path.substringAfterLast(".").ifEmpty { "jpg" }
             }
             addImages(files)
         }

@@ -61,10 +61,6 @@ platform :ios do
     end
 
     lane :deliver_store do |options|
-#         deliver(
-#               skip_screenshots: true,
-#               skip_metadata: true,
-#           )
         upload_to_testflight(
             skip_waiting_for_build_processing: true,
             apple_id: ENV['APPLE_ID_TESTFLIGHT']
@@ -83,8 +79,13 @@ end
 
 platform :macos do
     desc "Build Macos app"
-    lane :build do |options|
+    lane :buildDmg do |options|
         gradle(task: "packageReleaseDmg")
+    end
+
+    desc "Build Macos package"
+    lane :buildPkg do |options|
+        gradle(task: "packageReleasePkg -PappStore=true")
     end
 
 #     lane :notarize_backup do |options|
@@ -99,7 +100,8 @@ platform :macos do
 
     desc "Deploy"
     lane :deploy_dmg do |options|
-        build
+        setup_ci if ENV['CI']
+        buildDmg
         version_number = File.read("../VERSION").strip
         notarize(
             package: "composeApp/build/compose/binaries/main-release/dmg/Gridline-#{version_number}.dmg",
@@ -107,13 +109,24 @@ platform :macos do
             api_key_path: "fastlane/mac-api-key.json",
             print_log: "true"
         )
-#         deliver(
-#             platform: "osx",
-#             skip_screenshots: true,
-#             skip_metadata: true,
-#             precheck_include_in_app_purchases: false,
-#             copyright: "#{Time.now.year} Yannick Pulver"
-#         )
+    end
+
+    lane :deploy_store do |options|
+        setup_ci if ENV['CI']
+        match(
+            type: "appstore",
+            additional_cert_types: "mac_installer_distribution",
+            platform: "macos"
+        )
+        buildPkg
+        version_number = File.read("../VERSION").strip
+        deliver(
+            platform: "osx",
+            skip_screenshots: true,
+            skip_metadata: true,
+            precheck_include_in_app_purchases: false,
+            copyright: "#{Time.now.year} Yannick Pulver"
+        )
     end
 
 

@@ -6,7 +6,7 @@ import java.io.ByteArrayOutputStream
 import javax.imageio.ImageIO
 
 // Desktop (JVM) Implementation (jvmMain)
-actual fun resizeImage(inputBytes: ByteArray, maxSize: Int): ByteArray {
+actual fun resizeImage(inputBytes: ByteArray, maxSize: Int, extension: String): ByteArray {
     val inputStream = ByteArrayInputStream(inputBytes)
     val originalImage = ImageIO.read(inputStream)
 
@@ -27,6 +27,6 @@ actual fun resizeImage(inputBytes: ByteArray, maxSize: Int): ByteArray {
     g2.dispose()
 
     val baos = ByteArrayOutputStream()
-    ImageIO.write(resizedImage, "jpg", baos)
+    ImageIO.write(resizedImage, extension, baos)
     return baos.toByteArray()
 }

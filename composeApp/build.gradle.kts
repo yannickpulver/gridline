@@ -144,9 +144,18 @@ android {
     signingConfigs {
         create("release") {
             storeFile = file("release.jks")
-            storePassword = gradleLocalProperties(rootDir, providers).getOrDefault("signingKey", null) as String? ?: System.getenv("ANDROID_SIGNING_KEY") ?: ""
-            keyAlias = gradleLocalProperties(rootDir, providers).getOrDefault("signingAlias", null) as String? ?: System.getenv("ANDROID_SIGNING_ALIAS") ?: ""
-            keyPassword = gradleLocalProperties(rootDir, providers).getOrDefault("signingKey", null) as String? ?: System.getenv("ANDROID_SIGNING_KEY") ?: ""
+            storePassword = gradleLocalProperties(rootDir, providers).getOrDefault(
+                "signingKey",
+                null
+            ) as String? ?: System.getenv("ANDROID_SIGNING_KEY") ?: ""
+            keyAlias = gradleLocalProperties(rootDir, providers).getOrDefault(
+                "signingAlias",
+                null
+            ) as String? ?: System.getenv("ANDROID_SIGNING_ALIAS") ?: ""
+            keyPassword = gradleLocalProperties(rootDir, providers).getOrDefault(
+                "signingKey",
+                null
+            ) as String? ?: System.getenv("ANDROID_SIGNING_KEY") ?: ""
 
         }
     }
@@ -167,18 +176,27 @@ compose.desktop {
         mainClass = "com.yannickpulver.gridline.MainKt"
 
         nativeDistributions {
-            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
+            targetFormats(TargetFormat.Dmg, TargetFormat.Pkg)
             packageName = "Gridline"
             packageVersion = rootProject.file("VERSION").readText().trim()
             includeAllModules = true
             macOS {
+                appStore = project.property("appStore").toString().toBoolean()
                 iconFile.set(project.file("icon.icns"))
                 bundleID = "com.yannickpulver.gridline"
-                entitlementsFile.set(project.file("entitlements.plist"))
                 signing {
                     sign.set(true)
                     // This will have to match the name of the certificate issuer -> If you have multiple, remove all but one.
                     identity.set("Yannick Pulver")
+                }
+
+                if (appStore) {
+                    entitlementsFile.set(project.file("entitlements.plist"))
+                    runtimeEntitlementsFile.set(project.file("runtime-entitlements.plist"))
+                    provisioningProfile.set(project.file("embedded.provisionprofile"))
+                    runtimeProvisioningProfile.set(project.file("runtime.provisionprofile"))
+                } else {
+                    entitlementsFile.set(project.file("default-entitlements.plist"))
                 }
             }
 
@@ -205,8 +223,18 @@ buildkonfig {
     packageName = "com.yannickpulver.gridline"
     defaultConfigs {
         // prod
-        buildConfigField(FieldSpec.Type.STRING, "SUPABASE_KEY", gradleLocalProperties(rootDir, providers).getOrDefault("supabaseKey", null) as String? ?: System.getenv("SUPABASE_KEY") ?: "")
-        buildConfigField(FieldSpec.Type.STRING, "SUPABASE_URL", gradleLocalProperties(rootDir, providers).getOrDefault("supabaseUrl", null) as String? ?: System.getenv("SUPABASE_URL") ?: "")
+        buildConfigField(
+            FieldSpec.Type.STRING,
+            "SUPABASE_KEY",
+            gradleLocalProperties(rootDir, providers).getOrDefault("supabaseKey", null) as String?
+                ?: System.getenv("SUPABASE_KEY") ?: ""
+        )
+        buildConfigField(
+            FieldSpec.Type.STRING,
+            "SUPABASE_URL",
+            gradleLocalProperties(rootDir, providers).getOrDefault("supabaseUrl", null) as String?
+                ?: System.getenv("SUPABASE_URL") ?: ""
+        )
     }
 }
 

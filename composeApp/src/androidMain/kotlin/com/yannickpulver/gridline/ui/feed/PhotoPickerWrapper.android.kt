@@ -6,7 +6,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
 @Composable
-actual fun PhotoPickerWrapper(addImages: (List<ByteArray>) -> Unit, content: @Composable (onClick: (() -> Unit)) -> Unit) {
+actual fun PhotoPickerWrapper(
+    addImages: (List<Pair<ByteArray, String>>) -> Unit,
+    content: @Composable (onClick: (() -> Unit)) -> Unit
+) {
     val context = LocalContext.current
 
     val launcher = rememberLauncherForActivityResult(
@@ -14,6 +17,7 @@ actual fun PhotoPickerWrapper(addImages: (List<ByteArray>) -> Unit, content: @Co
         onResult = { uris ->
             val byteArrays = uris.mapNotNull { uri ->
                 context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                    ?.let { it to uri.path?.substringAfterLast(".").orEmpty().ifEmpty { "jpg" } }
             }
             addImages(byteArrays)
         }

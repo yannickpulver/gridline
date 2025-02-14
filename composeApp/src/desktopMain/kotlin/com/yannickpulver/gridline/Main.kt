@@ -114,8 +114,9 @@ fun MainApp(rootComponent: RootComponent, supabaseApi: SupabaseApi = koinInject(
                             }
 
                             CoroutineScope(Dispatchers.IO).launch {
+                                val file = File(path)
                                 SnackbarStateHolder.success("Uploading...")
-                                supabaseApi.putImage(File(path).readBytes())
+                                supabaseApi.putImage(file.readBytes(), file.extension)
                                 SnackbarStateHolder.success("Success!")
                                 supabaseApi.fetchImages()
                             }

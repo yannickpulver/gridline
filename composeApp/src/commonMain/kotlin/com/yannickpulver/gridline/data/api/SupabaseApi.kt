@@ -1,5 +1,6 @@
 package com.yannickpulver.gridline.data.api
 
+import co.touchlab.kermit.Logger
 import com.yannickpulver.gridline.data.dto.ImageCreateDto
 import com.yannickpulver.gridline.data.dto.ImageDto
 import com.yannickpulver.gridline.data.dto.ImageOrderUpdateDto
@@ -39,12 +40,18 @@ class SupabaseApi(
     private val imageFlow = MutableStateFlow<List<ImageDto>>(emptyList())
     private val storedImages = MutableStateFlow<List<StoredImage>>(emptyList())
 
-    suspend fun putImage(bytes: ByteArray, storageOnly: Boolean = false) {
+    suspend fun putImage(bytes: ByteArray, extension: String, storageOnly: Boolean = false) {
         val userId = appPrefs.getUserId() ?: error("No user id")
 
         val highestRank = getHighestRank()
 
-        val resizedBytes = resizeImage(bytes, 500)
+        var resizedBytes = resizeImage(bytes, 500, extension)
+
+        if (resizedBytes.isEmpty()) {
+            resizedBytes = bytes
+        }
+        Logger.i { "Resized image size: ${resizedBytes.size}, old size: ${bytes.size}" }
+
         val name = "${Uuid.random()}.jpg" // TODO fix?
         val bucketUrl = putToStorage("$userId/$name", resizedBytes)
         if (storageOnly.not()) {

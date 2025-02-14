@@ -81,13 +81,21 @@ Build and deploy the iOS app
 
 ## macos
 
-### macos build
+### macos buildDmg
 
 ```sh
-[bundle exec] fastlane macos build
+[bundle exec] fastlane macos buildDmg
 ```
 
 Build Macos app
+
+### macos buildPkg
+
+```sh
+[bundle exec] fastlane macos buildPkg
+```
+
+Build Macos package
 
 ### macos deploy_dmg
 
@@ -96,6 +104,14 @@ Build Macos app
 ```
 
 Deploy
+
+### macos deploy_store
+
+```sh
+[bundle exec] fastlane macos deploy_store
+```
+
+
 
 ----
 

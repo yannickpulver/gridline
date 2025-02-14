@@ -1,6 +1,8 @@
 package com.yannickpulver.gridline
 
 import androidx.compose.ui.window.ComposeUIViewController
+import co.touchlab.kermit.Logger
+import co.touchlab.kermit.XcodeSeverityWriter
 import com.arkivanov.decompose.DefaultComponentContext
 import com.arkivanov.decompose.ExperimentalDecomposeApi
 import com.arkivanov.decompose.lifecycle.ApplicationLifecycle
@@ -9,6 +11,7 @@ import platform.UIKit.UIViewController
 
 @OptIn(ExperimentalDecomposeApi::class)
 fun MainViewController(): UIViewController {
+
     val rootComponent =
         RootComponent(
             componentContext = DefaultComponentContext(lifecycle = ApplicationLifecycle()),

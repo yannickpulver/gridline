@@ -1,5 +1,6 @@
 package com.yannickpulver.gridline.ui.feed
 
+import co.touchlab.kermit.Logger
 import com.arkivanov.decompose.ComponentContext
 import com.yannickpulver.gridline.data.api.InstaApi
 import com.yannickpulver.gridline.data.api.SupabaseApi
@@ -100,29 +101,34 @@ class FeedComponent(componentContext: ComponentContext, private val onReset: () 
 
             rank.fold(
                 onSuccess = {
-                    println("Ranking single item: ${displayItem.supaId} to $it")
+                    Logger.i {  "Ranking single item: ${displayItem.supaId} to $it" }
                     ioScope.launch {
                         supabaseApi.updateImageOrder(ImageOrderUpdateDto(displayItem.supaId, it))
                     }
                 },
                 onFailure = {
-                    println("Ranking single item failed: ${it.message}, retrying with full list")
+                    Logger.i { "Ranking single item failed: ${it.message}, retrying with full list" }
                     ioScope.launch {
                         val images = supabaseApi.fetchImages()
 
                         val updatedImages = images.toMutableList()
-                        val currentIndex = updatedImages.indexOfFirst { it.id == displayItem.supaId }
+                        val currentIndex =
+                            updatedImages.indexOfFirst { it.id == displayItem.supaId }
                         if (currentIndex != -1) {
                             updatedImages.removeAt(currentIndex)
                             val targetIndex = when {
                                 previousItem is DisplayItem.SupabaseItem -> {
-                                    val index = updatedImages.indexOfFirst { it.id == previousItem.supaId }
+                                    val index =
+                                        updatedImages.indexOfFirst { it.id == previousItem.supaId }
                                     if (index == -1) updatedImages.size else index + 1
                                 }
+
                                 nextItem is DisplayItem.SupabaseItem -> {
-                                    val index = updatedImages.indexOfFirst { it.id == nextItem.supaId }
+                                    val index =
+                                        updatedImages.indexOfFirst { it.id == nextItem.supaId }
                                     if (index == -1) 0 else index
                                 }
+
                                 else -> updatedImages.size
                             }
                             updatedImages.add(targetIndex, images[currentIndex])
@@ -171,18 +177,18 @@ class FeedComponent(componentContext: ComponentContext, private val onReset: () 
         _instaFeed.update { it.minus(item) }
     }
 
-    fun storeImages(bytes: List<ByteArray>) {
-        bytes.forEach { addImage(it, storageOnly = true) }
+    fun storeImages(bytes: List<Pair<ByteArray, String>>) {
+        bytes.forEach { addImage(it.first, it.second, storageOnly = true) }
     }
 
-    fun addImages(bytes: List<ByteArray>) {
-        bytes.forEach { addImage(it, storageOnly = false) }
+    fun addImages(bytes: List<Pair<ByteArray, String>>) {
+        bytes.forEach { addImage(it.first, it.second, storageOnly = false) }
     }
 
-    fun addImage(bytes: ByteArray, storageOnly: Boolean) {
+    fun addImage(bytes: ByteArray, extension: String, storageOnly: Boolean) {
         ioScope.launch {
             SnackbarStateHolder.success("Uploading...")
-            supabaseApi.putImage(bytes = bytes, storageOnly = storageOnly)
+            supabaseApi.putImage(bytes = bytes, storageOnly = storageOnly, extension = extension)
             SnackbarStateHolder.success("Success!")
         }
     }

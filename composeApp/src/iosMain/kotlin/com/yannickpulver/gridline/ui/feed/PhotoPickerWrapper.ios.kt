@@ -7,7 +7,7 @@ import com.preat.peekaboo.image.picker.SelectionMode
 import com.preat.peekaboo.image.picker.rememberImagePickerLauncher
 
 @Composable
-actual fun PhotoPickerWrapper(addImages: (List<ByteArray>) -> Unit, content: @Composable (onClick: (() -> Unit)) -> Unit) {
+actual fun PhotoPickerWrapper(addImages: (List<Pair<ByteArray, String>>) -> Unit, content: @Composable (onClick: (() -> Unit)) -> Unit) {
     val scope = rememberCoroutineScope()
 
     val multipleImagePicker = rememberImagePickerLauncher(
@@ -15,7 +15,7 @@ actual fun PhotoPickerWrapper(addImages: (List<ByteArray>) -> Unit, content: @Co
         // Default: No limit, depends on system's maximum capacity.
         selectionMode = SelectionMode.Multiple(),
         scope = scope,
-        onResult = addImages,
+        onResult = { addImages(it.map { it to "jpg" }) },
         resizeOptions = ResizeOptions(500, 500)
     )
 

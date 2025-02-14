@@ -5,7 +5,7 @@ import android.graphics.BitmapFactory
 import java.io.ByteArrayOutputStream
 
 // Android Implementation (androidMain)
-actual fun resizeImage(inputBytes: ByteArray, maxSize: Int): ByteArray {
+actual fun resizeImage(inputBytes: ByteArray, maxSize: Int, extension: String): ByteArray {
     val bitmap = BitmapFactory.decodeByteArray(inputBytes, 0, inputBytes.size)
 
     var targetWidth = maxSize

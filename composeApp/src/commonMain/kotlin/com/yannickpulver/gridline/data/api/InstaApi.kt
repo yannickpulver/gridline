@@ -25,7 +25,7 @@ class InstaApi(val appPrefs: AppPrefs, val client: HttpClient, val json: Json) {
     private suspend fun getFeedByUsername(userName: String): List<DisplayItem.InstaItem> {
         val url = "https://i.instagram.com/api/v1/users/web_profile_info/?username=$userName"
         val result = client.get(url) {
-            header("x-ig-app-id", "936619743392459")
+            header("x-ig-app-id", "567067343352427")
         }
         val response = runCatching {
             if (result.status.value != 200) {
