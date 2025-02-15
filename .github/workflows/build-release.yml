@@ -83,8 +83,8 @@ jobs:
       - name: Import signing certificate
         uses: apple-actions/import-codesign-certs@v2
         with:
-          p12-file-base64: ${{ secrets.SIGNING_CERTIFICATE_P12_DATA_MACOS }}
-          p12-password: ${{ secrets.SIGNING_CERTIFICATE_PASSWORD_MACOS }}
+          p12-file-base64: ${{ secrets.SIGNING_CERTIFICATE_P12_DATA_MACOS_APPSTORE }}
+          p12-password: ${{ secrets.SIGNING_CERTIFICATE_PASSWORD_MACOS_APPSTORE }}
 
       - name: Decode Runtime Provision Profile
         uses: timheuer/base64-to-file@v1.2
@@ -157,7 +157,7 @@ jobs:
           path: composeApp/build/compose/binaries/main-release/dmg/*.dmg
 
   release-mac:
-    needs: [ build-mac ]
+    needs: [ build-mac, deploy-ios, deploy-android, deploy-mac-store ]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
