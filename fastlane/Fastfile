@@ -120,12 +120,9 @@ platform :macos do
         )
         buildPkg
         version_number = File.read("../VERSION").strip
-        deliver(
-            platform: "osx",
-            skip_screenshots: true,
-            skip_metadata: true,
-            precheck_include_in_app_purchases: false,
-            copyright: "#{Time.now.year} Yannick Pulver",
+        upload_to_testflight(
+            skip_waiting_for_build_processing: true,
+            apple_id: ENV['APPLE_ID_TESTFLIGHT'],
             pkg: "composeApp/build/compose/binaries/main-release/pkg/Gridline-#{version_number}.pkg"
         )
     end
