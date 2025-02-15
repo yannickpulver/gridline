@@ -145,8 +145,8 @@ jobs:
           name: Gridline-dmg
           path: composeApp/build/compose/binaries/main-release/dmg/*.dmg
 
-  release:
-    needs: [ buildMac ]
+  release-mac:
+    needs: [ build-mac ]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
