@@ -125,7 +125,8 @@ platform :macos do
             skip_screenshots: true,
             skip_metadata: true,
             precheck_include_in_app_purchases: false,
-            copyright: "#{Time.now.year} Yannick Pulver"
+            copyright: "#{Time.now.year} Yannick Pulver",
+            pkg: "composeApp/build/compose/binaries/main-release/pkg/Gridline-#{version_number}.pkg"
         )
     end
 

@@ -65,23 +65,60 @@ jobs:
           ANDROID_SIGNING_KEY: ${{ secrets.ANDROID_SIGNING_KEY }}
           ANDROID_SIGNING_ALIAS: ${{ secrets.ANDROID_SIGNING_ALIAS }}
 
-  buildMac:
+  deploy-mac-store:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v3
-      - name: Download JBR
-        uses: carlosperate/download-file-action@v2
+      - name: set up JDK
+        uses: actions/setup-java@v4
         with:
-          file-url: 'https://cache-redirector.jetbrains.com/intellij-jbr/jbrsdk-17.0.10-osx-aarch64-b1171.14.tar.gz'
-          file-name: 'jbr-17.0.10.tar.gz'
+          distribution: 'zulu'
+          java-version: 18
 
-      - name: Setup Java
-        uses: actions/setup-java@v3
+      - name: Install Fastlane
+        run: |
+          gem install bundler
+          bundle install
+
+      - name: Import signing certificate
+        uses: apple-actions/import-codesign-certs@v2
         with:
-          java-version: 17
-          distribution: jdkfile
-          jdkFile: jbr-17.0.10.tar.gz
-          cache: gradle
+          p12-file-base64: ${{ secrets.SIGNING_CERTIFICATE_P12_DATA_MACOS }}
+          p12-password: ${{ secrets.SIGNING_CERTIFICATE_PASSWORD_MACOS }}
+
+      - name: Decode Runtime Provision Profile
+        uses: timheuer/base64-to-file@v1.2
+        with:
+          fileName: 'runtime.provisionprofile'
+          fileDir: './composeApp/'
+          encodedString: ${{ secrets.RUNTIME_PROVISIONPROFILE }}
+
+      - name: Decode Embedded Provision Profile
+        uses: timheuer/base64-to-file@v1.2
+        with:
+          fileName: 'embedded.provisionprofile'
+          fileDir: './composeApp/'
+          encodedString: ${{ secrets.EMBEDDED_PROVISIONPROFILE }}
+
+      - name: Decode Entitlements
+        uses: timheuer/base64-to-file@v1.2
+        with:
+          fileName: 'entitlements.plist'
+          fileDir: './composeApp/'
+          encodedString: ${{ secrets.ENTITLEMENTS }}
+
+      - name: Build with Gradle
+        run: bundle exec fastlane macos deploy_store
+
+  build-mac:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v3
+      - name: set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: 18
 
       - name: Install Fastlane
         run: |
