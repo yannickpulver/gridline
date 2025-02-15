@@ -98,7 +98,6 @@ kotlin {
             implementation(libs.ktor.client.java)
             //implementation(libs.ktor.util)
             implementation(libs.kotlinx.coroutines.swing)
-            implementation("com.bybutter.compose:compose-jetbrains-expui-theme:2.2.0")
         }
 
         iosMain.dependencies {
@@ -180,17 +179,20 @@ compose.desktop {
             packageName = "Gridline"
             packageVersion = rootProject.file("VERSION").readText().trim()
             includeAllModules = true
+            val isAppStore = project.property("appStore").toString().toBoolean()
             macOS {
-                appStore = project.property("appStore").toString().toBoolean()
-                iconFile.set(project.file("icon.icns"))
                 bundleID = "com.yannickpulver.gridline"
+                appStore = isAppStore
+                iconFile.set(project.file("icon.icns"))
+                minimumSystemVersion = "12.0"
                 signing {
                     sign.set(true)
                     // This will have to match the name of the certificate issuer -> If you have multiple, remove all but one.
                     identity.set("Yannick Pulver")
                 }
 
-                if (appStore) {
+                if (isAppStore) {
+                    println("App Store Build, ${project.file("entitlements.plist").exists()}")
                     entitlementsFile.set(project.file("entitlements.plist"))
                     runtimeEntitlementsFile.set(project.file("runtime-entitlements.plist"))
                     provisioningProfile.set(project.file("embedded.provisionprofile"))
@@ -204,17 +206,6 @@ compose.desktop {
 
         buildTypes.release.proguard {
             isEnabled = false
-        }
-
-        jvmArgs("--add-opens", "java.desktop/sun.awt=ALL-UNNAMED")
-        jvmArgs(
-            "--add-opens",
-            "java.desktop/java.awt.peer=ALL-UNNAMED"
-        ) // recommended but not necessary
-
-        if (System.getProperty("os.name").contains("Mac")) {
-            jvmArgs("--add-opens", "java.desktop/sun.lwawt=ALL-UNNAMED")
-            jvmArgs("--add-opens", "java.desktop/sun.lwawt.macosx=ALL-UNNAMED")
         }
     }
 }

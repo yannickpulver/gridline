@@ -4,6 +4,7 @@ import androidx.compose.desktop.ui.tooling.preview.Preview
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.draganddrop.dragAndDropTarget
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
@@ -20,10 +21,10 @@ import androidx.compose.ui.draganddrop.DragAndDropTarget
 import androidx.compose.ui.draganddrop.DragData
 import androidx.compose.ui.draganddrop.dragData
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.WindowState
+import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
+import androidx.compose.ui.window.rememberWindowState
 import com.arkivanov.decompose.DefaultComponentContext
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import com.arkivanov.essenty.lifecycle.LifecycleRegistry
@@ -33,7 +34,6 @@ import com.yannickpulver.gridline.ui.feed.Menu
 import com.yannickpulver.gridline.ui.navigation.RootComponent
 import com.yannickpulver.gridline.ui.snackbar.SnackbarStateHolder
 import com.yannickpulver.gridline.utils.runOnUiThread
-import io.kanro.compose.jetbrains.expui.window.JBWindow
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -54,36 +54,42 @@ fun main() {
         }
 
     application {
-        JBWindow(
+        Window(
             onCloseRequest = ::exitApplication,
-            state = WindowState(size = DpSize(400.dp, 800.dp)),
+            state = rememberWindowState(width = 400.dp, height = 800.dp),
             title = "Gridline",
-            mainToolBar = {
-                val childStack by rootComponent.childStack.subscribeAsState()
-                Row(
-                    Modifier.mainToolBarItem(Alignment.End, true),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    val instance = childStack.active.instance
-                    if (instance is RootComponent.Child.Feed) {
-                        Menu(
-                            uuid = instance.component.state.value.uuid,
-                            addPlaceholder = { instance.component.addPlaceholder() },
-                            reset = { instance.component.reset() },
-                            toggleBorders = { instance.component.toggleBorders() },
-                            icon = {
-                                Icon(
-                                    imageVector = Icons.Rounded.MoreHoriz,
-                                    contentDescription = "More",
-                                    tint = Color.White
-                                )
-                            })
-                    }
-                }
-            }
         ) {
-            MainApp(rootComponent)
+            Box(Modifier.fillMaxSize()) {
+                MainApp(rootComponent)
+                // TODO: To move to toolbar
+                Toolbar(rootComponent, modifier = Modifier.align(Alignment.TopEnd))
+            }
+        }
+    }
+}
+
+@Composable
+private fun Toolbar(rootComponent: RootComponent, modifier: Modifier = Modifier) {
+    val childStack by rootComponent.childStack.subscribeAsState()
+    Row(
+        modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        val instance = childStack.active.instance
+        if (instance is RootComponent.Child.Feed) {
+            Menu(
+                uuid = instance.component.state.value.uuid,
+                addPlaceholder = { instance.component.addPlaceholder() },
+                reset = { instance.component.reset() },
+                toggleBorders = { instance.component.toggleBorders() },
+                icon = {
+                    Icon(
+                        imageVector = Icons.Rounded.MoreHoriz,
+                        contentDescription = "More",
+                        tint = Color.White
+                    )
+                })
         }
     }
 }
