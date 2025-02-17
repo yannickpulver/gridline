@@ -192,7 +192,6 @@ compose.desktop {
                 }
 
                 if (isAppStore) {
-                    println("App Store Build, ${project.file("entitlements.plist").exists()}")
                     entitlementsFile.set(project.file("entitlements.plist"))
                     runtimeEntitlementsFile.set(project.file("runtime-entitlements.plist"))
                     provisioningProfile.set(project.file("embedded.provisionprofile"))

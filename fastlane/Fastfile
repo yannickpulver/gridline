@@ -88,16 +88,6 @@ platform :macos do
         gradle(task: "packageReleasePkg -PappStore=true")
     end
 
-#     lane :notarize_backup do |options|
-#         release_path = options[:release_path] || ENV["RELEASE_PATH"]
-#         apple_id     = options[:apple_id]     || ENV["APPLE_ID_NOTARIZATION"]
-#         password     = options[:password]     || ENV["NOTARIZATION_PWD"]
-#         team_id      = options[:team_id]      || ENV["APPSTORE_TEAM_ID"]
-#
-#         sh("xcrun notarytool submit #{release_path} --apple-id #{apple_id} --password #{password} --team-id #{team_id} --wait")
-#         sh("xcrun stapler staple #{release_path}")
-#     end
-
     desc "Deploy"
     lane :deploy_dmg do |options|
         setup_ci if ENV['CI']
@@ -113,11 +103,14 @@ platform :macos do
 
     lane :deploy_store do |options|
         setup_ci if ENV['CI']
-        match(
-            type: "appstore",
-            additional_cert_types: "mac_installer_distribution",
-            platform: "macos"
-        )
+        # Match currently does not work for macOS builds, since it only downloads "Apple Distribution" certificates
+        # and not the older "3rd Party Mac Developer Application" certificates that compose-multiplatform needs.
+        # https://youtrack.jetbrains.com/issue/CMP-7622/Support-for-Apple-Distribution-Apple-Development-certificate
+        # match(
+        #    type: "appstore",
+        #    additional_cert_types: "mac_installer_distribution",
+        #    platform: "macos"
+        # )
         buildPkg
         version_number = File.read("../VERSION").strip
         upload_to_testflight(
