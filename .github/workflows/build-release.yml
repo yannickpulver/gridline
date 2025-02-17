@@ -3,10 +3,8 @@ name: "Release"
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
-  paths-ignore:
-    - '**/README.md'
+    paths-ignore:
+      - '**/README.md'
 
 
 #on:
