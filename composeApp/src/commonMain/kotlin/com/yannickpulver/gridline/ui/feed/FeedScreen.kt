@@ -203,12 +203,12 @@ private fun BottomContainer(
                 }
             }
 
-            val rows = remember { derivedStateOf { if (state.storedImages.size > 10) 2 else 1 } }
+            val rows = if (state.storedImages.size > 10) 2 else 1
 
             LazyHorizontalGrid(
-                rows = GridCells.Fixed(rows.value),
+                rows = GridCells.Fixed(rows),
                 state = lazyListState,
-                modifier = Modifier.fillMaxWidth().height(72.dp * rows.value + 8.dp * 2 + 8.dp),
+                modifier = Modifier.fillMaxWidth().height(72.dp * rows + 8.dp * 2 + 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(8.dp)
