@@ -4,6 +4,7 @@ on:
   schedule:
     # Every month at 1am
     - cron: '0 1 1 * *'
+  workflow_dispatch:                     # manual run button
 
 jobs:
   remove-old-artifacts:
