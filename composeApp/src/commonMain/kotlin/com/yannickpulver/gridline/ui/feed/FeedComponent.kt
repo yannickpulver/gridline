@@ -5,6 +5,7 @@ import com.arkivanov.decompose.ComponentContext
 import com.yannickpulver.gridline.data.api.InstaApi
 import com.yannickpulver.gridline.data.api.SupabaseApi
 import com.yannickpulver.gridline.data.dto.ImageDto
+import com.yannickpulver.gridline.data.observeSharedImages
 import com.yannickpulver.gridline.data.dto.ImageOrderUpdateDto
 import com.yannickpulver.gridline.data.prefs.AppPrefs
 import com.yannickpulver.gridline.ui.feed.model.DisplayItem
@@ -78,6 +79,12 @@ class FeedComponent(componentContext: ComponentContext, private val onReset: () 
                     _instaPinnedFeed.update { pinned.map { it.value } }
                     _instaFeed.update { posts.map { it.value } }
                 }
+            }
+        }
+
+        ioScope.launch {
+            observeSharedImages().collect { images ->
+                addImages(images)
             }
         }
     }
