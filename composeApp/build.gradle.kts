@@ -48,7 +48,7 @@ kotlin {
             implementation(libs.koin.android)
 
             implementation(libs.peekaboo.image.picker)
-
+            implementation(libs.androidx.exifinterface)
         }
         commonMain.dependencies {
             implementation(compose.runtime)
