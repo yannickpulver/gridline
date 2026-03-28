@@ -118,12 +118,14 @@ class SupabaseApi(
     suspend fun fetchStoredImages() {
         val userId = appPrefs.getUserId() ?: error("No user id")
         val bucket = client.storage[BUCKET_IMAGES_KEY]
-        storedImages.value = bucket.list(userId).map {
-            StoredImage(
-                path = "$userId/${it.name}",
-                url = bucket.publicUrl("$userId/${it.name}")
-            )
-        }
+        storedImages.value = bucket.list(userId)
+            .sortedByDescending { it.createdAt ?: "" }
+            .map {
+                StoredImage(
+                    path = "$userId/${it.name}",
+                    url = bucket.publicUrl("$userId/${it.name}")
+                )
+            }
     }
 
     suspend fun exchangeImageUrl(id: Int, url: String) {
