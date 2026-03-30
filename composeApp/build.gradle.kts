@@ -1,6 +1,7 @@
 import com.android.build.gradle.internal.cxx.configure.gradleLocalProperties
 import com.codingfeline.buildkonfig.compiler.FieldSpec
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -14,10 +15,8 @@ plugins {
 
 kotlin {
     androidTarget {
-        compilations.all {
-            kotlinOptions {
-                jvmTarget = "1.8"
-            }
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_1_8)
         }
     }
 
@@ -180,6 +179,11 @@ compose.desktop {
             packageVersion = rootProject.file("VERSION").readText().trim()
             includeAllModules = true
             val isAppStore = project.property("appStore").toString().toBoolean()
+            val signingIdentityPropertyName = if (isAppStore) {
+                "gridline.macos.signing.identity.appStore"
+            } else {
+                "gridline.macos.signing.identity.nonAppStore"
+            }
             macOS {
                 bundleID = "com.yannickpulver.gridline"
                 appStore = isAppStore
@@ -187,8 +191,11 @@ compose.desktop {
                 minimumSystemVersion = "12.0"
                 signing {
                     sign.set(true)
-                    // This will have to match the name of the certificate issuer -> If you have multiple, remove all but one.
-                    identity.set("Yannick Pulver")
+                    // Use explicit certificate identities to avoid ambiguous keychain matches.
+                    providers.gradleProperty(signingIdentityPropertyName)
+                        .orElse(providers.gradleProperty("gridline.macos.signing.identity"))
+                        .orNull
+                        ?.let(identity::set)
                 }
 
                 if (isAppStore) {
@@ -227,4 +234,3 @@ buildkonfig {
         )
     }
 }
-
