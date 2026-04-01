@@ -25,7 +25,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 import kotlinx.serialization.json.Json
 import kotlin.uuid.Uuid
 
@@ -33,7 +33,7 @@ class SupabaseApi(
     private val appPrefs: AppPrefs,
     private val client: SupabaseClient,
     private val json: Json,
-    private val clock: Clock.System = Clock.System
+    private val clock: Clock = Clock.System
 ) {
 
     private val realtimeChannel = client.realtime.channel("channel-${Uuid.random()}")
@@ -119,7 +119,7 @@ class SupabaseApi(
         val userId = appPrefs.getUserId() ?: error("No user id")
         val bucket = client.storage[BUCKET_IMAGES_KEY]
         storedImages.value = bucket.list(userId)
-            .sortedByDescending { it.createdAt ?: "" }
+            .sortedByDescending { it.createdAt ?: kotlin.time.Instant.DISTANT_PAST }
             .map {
                 StoredImage(
                     path = "$userId/${it.name}",
