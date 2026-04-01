@@ -29,9 +29,14 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.FileUpload
 import androidx.compose.material.icons.rounded.MoreHoriz
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
@@ -172,6 +177,17 @@ private fun BottomContainer(
 
         val lazyListState = rememberLazyGridState()
 
+        var selectionMode by remember { mutableStateOf(false) }
+        val selectedPaths = remember { mutableStateOf(setOf<String>()) }
+
+        // Reset selection when panel is closed
+        LaunchedEffect(selectedItem.value) {
+            if (selectedItem.value == null) {
+                selectionMode = false
+                selectedPaths.value = emptySet()
+            }
+        }
+
         LaunchedEffect(state.storedImages, selectedItem.value?.url) {
             val index =
                 state.storedImages.map { it.url }.indexOf(selectedItem.value?.url)
@@ -185,21 +201,47 @@ private fun BottomContainer(
                 .background(MaterialTheme.colorScheme.surfaceVariant)
                 .navigationBarsPadding()
         ) {
-            Row(modifier = Modifier.align(Alignment.End)) {
-                PhotoPickerWrapper(addImages = component::storeImages) { onClick ->
-                    IconButton(onClick = onClick) {
+            Row(modifier = Modifier.align(Alignment.End), verticalAlignment = Alignment.CenterVertically) {
+                if (selectionMode) {
+                    // Delete selected button
+                    IconButton(
+                        onClick = {
+                            selectedPaths.value.forEach { path -> component.removeImage(path) }
+                            selectedPaths.value = emptySet()
+                            selectionMode = false
+                        }
+                    ) {
                         Icon(
-                            imageVector = Icons.Rounded.FileUpload,
-                            contentDescription = "Upload"
+                            imageVector = Icons.Rounded.Delete,
+                            contentDescription = "Delete selected",
+                            tint = MaterialTheme.colorScheme.error
                         )
                     }
-                }
-
-                IconButton(onClick = { selectedItem.value = null }) {
-                    Icon(
-                        imageVector = Icons.Rounded.Close,
-                        contentDescription = "Close"
-                    )
+                    // Cancel selection
+                    IconButton(onClick = {
+                        selectionMode = false
+                        selectedPaths.value = emptySet()
+                    }) {
+                        Icon(
+                            imageVector = Icons.Rounded.Close,
+                            contentDescription = "Cancel selection"
+                        )
+                    }
+                } else {
+                    PhotoPickerWrapper(addImages = component::storeImages) { onClick ->
+                        IconButton(onClick = onClick) {
+                            Icon(
+                                imageVector = Icons.Rounded.FileUpload,
+                                contentDescription = "Upload"
+                            )
+                        }
+                    }
+                    IconButton(onClick = { selectedItem.value = null }) {
+                        Icon(
+                            imageVector = Icons.Rounded.Close,
+                            contentDescription = "Close"
+                        )
+                    }
                 }
             }
 
@@ -214,31 +256,55 @@ private fun BottomContainer(
                 contentPadding = PaddingValues(8.dp)
             ) {
                 itemsIndexed(state.storedImages) { i, (path, url) ->
-                    SubcomposeAsyncImage(
-                        model = url,
-                        loading = { ImageLoader() },
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
+                    val isSelected = selectedPaths.value.contains(path)
+                    val isActive = !selectionMode && selectedItem.value?.url == url
+
+                    Box(
                         modifier = Modifier
                             .size(72.dp)
                             .combinedClickable(
                                 onClick = {
-                                    component.exchangeImage(selectedItem.value, url)
-                                    selectedItem.value = selectedItem.value?.copy(url = url)
+                                    if (selectionMode) {
+                                        selectedPaths.value = if (isSelected) {
+                                            selectedPaths.value - path
+                                        } else {
+                                            selectedPaths.value + path
+                                        }
+                                        // Exit selection mode if nothing selected
+                                        if (selectedPaths.value.isEmpty()) selectionMode = false
+                                    } else {
+                                        component.exchangeImage(selectedItem.value, url)
+                                        selectedItem.value = selectedItem.value?.copy(url = url)
+                                    }
                                 },
                                 onLongClick = {
-                                    component.removeImage(path)
+                                    selectionMode = true
+                                    selectedPaths.value = selectedPaths.value + path
                                 }
                             )
                             .then(
-                                if (selectedItem.value?.url == url)
-                                    Modifier.border(
-                                        2.dp,
-                                        MaterialTheme.colorScheme.primary
-                                    ) else Modifier
+                                when {
+                                    isSelected -> Modifier.border(2.dp, MaterialTheme.colorScheme.error)
+                                    isActive -> Modifier.border(2.dp, MaterialTheme.colorScheme.primary)
+                                    else -> Modifier
+                                }
                             )
-
-                    )
+                    ) {
+                        SubcomposeAsyncImage(
+                            model = url,
+                            loading = { ImageLoader() },
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                        if (isSelected) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(MaterialTheme.colorScheme.error.copy(alpha = 0.25f))
+                            )
+                        }
+                    }
                 }
             }
         }
