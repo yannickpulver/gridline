@@ -5,7 +5,7 @@ import co.touchlab.kermit.Logger
 import co.touchlab.kermit.XcodeSeverityWriter
 import com.arkivanov.decompose.DefaultComponentContext
 import com.arkivanov.decompose.ExperimentalDecomposeApi
-import com.arkivanov.decompose.lifecycle.ApplicationLifecycle
+import com.arkivanov.essenty.lifecycle.ApplicationLifecycle
 import com.yannickpulver.gridline.ui.navigation.RootComponent
 import platform.UIKit.UIViewController
 
