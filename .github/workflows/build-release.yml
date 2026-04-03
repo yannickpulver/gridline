@@ -127,6 +127,11 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
 
+      - name: Print error logs on failure
+        if: failure()
+        run: |
+          for f in composeApp/build/compose/logs/**/*.txt; do echo "=== $f ==="; cat "$f"; done
+
   build-mac:
     runs-on: macos-15
     steps:
