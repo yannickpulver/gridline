@@ -7,10 +7,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.MoreHoriz
+import androidx.compose.foundation.layout.padding
+import compose.icons.TablerIcons
+import compose.icons.tablericons.Dots
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -31,6 +33,7 @@ import com.arkivanov.essenty.lifecycle.LifecycleRegistry
 import com.yannickpulver.gridline.data.api.SupabaseApi
 import com.yannickpulver.gridline.di.initKoin
 import com.yannickpulver.gridline.ui.feed.Menu
+import com.yannickpulver.gridline.ui.theme.AppTheme
 import com.yannickpulver.gridline.ui.navigation.RootComponent
 import com.yannickpulver.gridline.ui.snackbar.SnackbarStateHolder
 import com.yannickpulver.gridline.utils.runOnUiThread
@@ -59,10 +62,11 @@ fun main() {
             state = rememberWindowState(width = 400.dp, height = 800.dp),
             title = "Gridline",
         ) {
-            Box(Modifier.fillMaxSize()) {
-                MainApp(rootComponent)
-                // TODO: To move to toolbar
-                Toolbar(rootComponent, modifier = Modifier.align(Alignment.TopEnd))
+            AppTheme(useDarkTheme = false, dynamicColor = false) {
+                Box(Modifier.fillMaxSize()) {
+                    MainApp(rootComponent)
+                    Toolbar(rootComponent, modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 30.dp))
+                }
             }
         }
     }
@@ -78,14 +82,15 @@ private fun Toolbar(rootComponent: RootComponent, modifier: Modifier = Modifier)
     ) {
         val instance = childStack.active.instance
         if (instance is RootComponent.Child.Feed) {
+            val feedState by instance.component.state.collectAsState()
             Menu(
-                uuid = instance.component.state.value.uuid,
+                uuid = feedState.uuid,
                 addPlaceholder = { instance.component.addPlaceholder() },
                 reset = { instance.component.reset() },
                 toggleBorders = { instance.component.toggleBorders() },
                 icon = {
                     Icon(
-                        imageVector = Icons.Rounded.MoreHoriz,
+                        imageVector = TablerIcons.Dots,
                         contentDescription = "More",
                         tint = Color.White
                     )

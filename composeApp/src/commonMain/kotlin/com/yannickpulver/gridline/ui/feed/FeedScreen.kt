@@ -27,16 +27,18 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.FileUpload
-import androidx.compose.material.icons.rounded.MoreHoriz
+import compose.icons.TablerIcons
+import compose.icons.tablericons.CircleCheck
+import compose.icons.tablericons.Dots
+import compose.icons.tablericons.Plus
+import compose.icons.tablericons.Trash
+import compose.icons.tablericons.Upload
+import compose.icons.tablericons.X
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
@@ -47,6 +49,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
@@ -100,7 +103,7 @@ fun FeedScreen(component: FeedComponent, modifier: Modifier = Modifier) {
                     onHide = component::hideImage
                 )
                 Column(
-                    modifier = Modifier.align(Alignment.BottomEnd).navigationBarsPadding()
+                    modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding()
                         .padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -108,11 +111,11 @@ fun FeedScreen(component: FeedComponent, modifier: Modifier = Modifier) {
                     PhotoPickerWrapper(component::addImages) { onClick ->
                         FloatingActionButton(
                             onClick = onClick,
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
+                            containerColor = Color.Black,
+                            contentColor = Color.White
                         ) {
                             Icon(
-                                imageVector = Icons.Rounded.Add,
+                                imageVector = TablerIcons.Plus,
                                 contentDescription = null
                             )
                         }
@@ -149,7 +152,7 @@ private fun TopBar(
                 toggleBorders = { component.toggleBorders() },
                 icon = {
                     Icon(
-                        imageVector = Icons.Rounded.MoreHoriz,
+                        imageVector = TablerIcons.Dots,
                         contentDescription = "Menu"
                     )
                 }
@@ -198,7 +201,7 @@ private fun BottomContainer(
 
         Column(
             Modifier
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .background(Color.White)
                 .navigationBarsPadding()
         ) {
             Row(modifier = Modifier.align(Alignment.End), verticalAlignment = Alignment.CenterVertically) {
@@ -212,9 +215,10 @@ private fun BottomContainer(
                         }
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.Delete,
+                            imageVector = TablerIcons.Trash,
                             contentDescription = "Delete selected",
-                            tint = MaterialTheme.colorScheme.error
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                     // Cancel selection
@@ -223,23 +227,29 @@ private fun BottomContainer(
                         selectedPaths.value = emptySet()
                     }) {
                         Icon(
-                            imageVector = Icons.Rounded.Close,
-                            contentDescription = "Cancel selection"
+                            imageVector = TablerIcons.X,
+                            contentDescription = "Cancel selection",
+                            tint = Color.Black,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 } else {
                     PhotoPickerWrapper(addImages = component::storeImages) { onClick ->
                         IconButton(onClick = onClick) {
                             Icon(
-                                imageVector = Icons.Rounded.FileUpload,
-                                contentDescription = "Upload"
+                                imageVector = TablerIcons.Upload,
+                                contentDescription = "Upload",
+                                tint = Color.Black,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
                     IconButton(onClick = { selectedItem.value = null }) {
                         Icon(
-                            imageVector = Icons.Rounded.Close,
-                            contentDescription = "Close"
+                            imageVector = TablerIcons.X,
+                            contentDescription = "Close",
+                            tint = Color.Black,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
@@ -333,20 +343,30 @@ fun Menu(
     val scope = rememberCoroutineScope()
     var expanded by remember { mutableStateOf(false) }
 
-    Box(
-        modifier = Modifier.wrapContentSize(Alignment.TopEnd)
-    ) {
-        IconButton(onClick = { expanded = !expanded }) {
-            icon()
-        }
+    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 1.dp) {
+        Box(
+            modifier = Modifier.wrapContentSize(Alignment.TopEnd)
+        ) {
+            IconButton(
+                onClick = { expanded = !expanded },
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(Color.Black)
+            ) {
+                icon()
+            }
 
         DropdownMenu(
             expanded = expanded,
-            onDismissRequest = { expanded = false }
+            onDismissRequest = { expanded = false },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(8.dp)
         ) {
             uuid?.let { uuid ->
                 DropdownMenuItem(
                     text = { Text("Copy Id") },
+                    contentPadding = PaddingValues(horizontal = 16.dp),
                     onClick = {
                         clipboard.setText(AnnotatedString(uuid))
                         scope.launch {
@@ -358,25 +378,21 @@ fun Menu(
             }
             DropdownMenuItem(
                 text = { Text("Add Placeholder") },
+                contentPadding = PaddingValues(horizontal = 16.dp),
                 onClick = {
                     addPlaceholder()
                     expanded = false
                 }
             )
-//            DropdownMenuItem(
-//                text = { Text("Toggle Borders") },
-//                onClick = {
-//                    toggleBorders()
-//                    expanded = false
-//                }
-//            )
             DropdownMenuItem(
-                text = { Text("Reset", color = MaterialTheme.colorScheme.error) },
+                text = { Text("Logout", color = MaterialTheme.colorScheme.error) },
+                contentPadding = PaddingValues(horizontal = 16.dp),
                 onClick = {
                     reset()
                     expanded = false
                 }
             )
+        }
         }
     }
 }

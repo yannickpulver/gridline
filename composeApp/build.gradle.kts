@@ -54,7 +54,7 @@ kotlin {
             implementation(compose.material3)
             implementation(compose.ui)
             implementation(compose.components.resources)
-            implementation(compose.materialIconsExtended)
+            implementation(libs.tabler.icons)
             implementation(compose.components.resources)
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.logging)

@@ -32,6 +32,7 @@ supabase = "3.4.1"
 koin = "4.1.0"
 decompose = "3.4.0"
 reorderable = "3.0.0"
+tabler-icons = "1.1.1"
 
 [libraries]
 coil = { module = "io.coil-kt.coil3:coil", version.ref = "coil" }
@@ -83,6 +84,7 @@ koin-compose = { module = "io.insert-koin:koin-compose", version.ref = "koin" }
 koin-androidx-compose = { module = "io.insert-koin:koin-androidx-compose", version.ref = "koin" }
 decompose = { module = "com.arkivanov.decompose:decompose", version.ref = "decompose" }
 decompose-extensions-compose = { module = "com.arkivanov.decompose:extensions-compose", version.ref = "decompose" }
+tabler-icons = { module = "br.com.devsrsouza.compose.icons:tabler-icons", version.ref = "tabler-icons" }
 
 
 

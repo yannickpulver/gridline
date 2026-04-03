@@ -18,9 +18,9 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.VisibilityOff
+import compose.icons.TablerIcons
+import compose.icons.tablericons.EyeOff
+import compose.icons.tablericons.Trash
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -159,7 +159,7 @@ private fun InstaGridItem(
         )
 
         Icon(
-            imageVector = Icons.Rounded.VisibilityOff,
+            imageVector = TablerIcons.EyeOff,
             contentDescription = null,
             modifier = Modifier
                 .clickable { onHide(item) }
@@ -247,7 +247,7 @@ private fun DeleteItem(
     modifier: Modifier = Modifier
 ) {
     Icon(
-        imageVector = Icons.Rounded.Delete,
+        imageVector = TablerIcons.Trash,
         contentDescription = null,
         modifier = modifier
             .size(20.dp)
