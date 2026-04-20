@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -102,23 +101,38 @@ fun FeedScreen(component: FeedComponent, modifier: Modifier = Modifier) {
                     showBorders = state.value.showBorders,
                     onHide = component::hideImage
                 )
-                Column(
-                    modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding()
-                        .padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                Box(
+                    modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                        .navigationBarsPadding().padding(16.dp)
                 ) {
                     PhotoPickerWrapper(component::addImages) { onClick ->
                         FloatingActionButton(
                             onClick = onClick,
                             containerColor = Color.Black,
-                            contentColor = Color.White
+                            contentColor = Color.White,
+                            modifier = Modifier.align(Alignment.Center)
                         ) {
                             Icon(
                                 imageVector = TablerIcons.Plus,
                                 contentDescription = null
                             )
                         }
+                    }
+                    if (hasHeader) {
+                        Menu(
+                            uuid = state.value.uuid,
+                            addPlaceholder = component::addPlaceholder,
+                            reset = component::reset,
+                            toggleBorders = { component.toggleBorders() },
+                            icon = {
+                                Icon(
+                                    imageVector = TablerIcons.Dots,
+                                    contentDescription = "Menu",
+                                    tint = Color.White
+                                )
+                            },
+                            modifier = Modifier.align(Alignment.CenterEnd)
+                        )
                     }
                 }
             }
@@ -135,27 +149,14 @@ private fun TopBar(
     Column {
         Row(
             modifier = Modifier.fillMaxWidth().statusBarsPadding()
-                .padding(start = 24.dp, end = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Spacer(modifier = Modifier.size(32.dp))
             Text(
                 "Gridline",
                 color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.SemiBold
-            )
-            Menu(
-                uuid = state.uuid,
-                addPlaceholder = component::addPlaceholder,
-                reset = component::reset,
-                toggleBorders = { component.toggleBorders() },
-                icon = {
-                    Icon(
-                        imageVector = TablerIcons.Dots,
-                        contentDescription = "Menu"
-                    )
-                }
             )
         }
         Divider()
@@ -337,7 +338,8 @@ fun Menu(
     addPlaceholder: () -> Unit,
     reset: () -> Unit,
     toggleBorders: () -> Unit,
-    icon: @Composable () -> Unit
+    icon: @Composable () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val clipboard = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
@@ -345,13 +347,13 @@ fun Menu(
 
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 1.dp) {
         Box(
-            modifier = Modifier.wrapContentSize(Alignment.TopEnd)
+            modifier = modifier.wrapContentSize(Alignment.TopEnd)
         ) {
             IconButton(
                 onClick = { expanded = !expanded },
                 modifier = Modifier
-                    .size(28.dp)
-                    .clip(RoundedCornerShape(6.dp))
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(12.dp))
                     .background(Color.Black)
             ) {
                 icon()
