@@ -11,9 +11,11 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -21,9 +23,11 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import compose.icons.TablerIcons
@@ -88,55 +92,84 @@ fun FeedScreen(component: FeedComponent, modifier: Modifier = Modifier) {
             }
         }
     ) {
-        Column(modifier = modifier.fillMaxSize()) {
-            Box(modifier = Modifier.padding(top = it.calculateTopPadding()).weight(1f)) {
-                Feed(
-                    state = state.value,
-                    onMove = component::onMove,
-                    onDelete = component::onDelete,
-                    onItemClick = {
-                        selectedItem.value =
-                            if (selectedItem.value?.url == it.url) (if (selectedItem.value != null) null else it) else it
-                    },
-                    showBorders = state.value.showBorders,
-                    onHide = component::hideImage
-                )
-                Box(
-                    modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                        .navigationBarsPadding().padding(16.dp)
-                ) {
-                    PhotoPickerWrapper(component::addImages) { onClick ->
-                        FloatingActionButton(
-                            onClick = onClick,
-                            containerColor = Color.Black,
-                            contentColor = Color.White,
-                            modifier = Modifier.align(Alignment.Center)
-                        ) {
-                            Icon(
-                                imageVector = TablerIcons.Plus,
-                                contentDescription = null
+        BoxWithConstraints(
+            modifier = modifier.fillMaxSize().padding(top = it.calculateTopPadding())
+        ) {
+            val isWide = maxWidth >= 600.dp
+
+            val feedArea: @Composable () -> Unit = {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    Feed(
+                        state = state.value,
+                        onMove = component::onMove,
+                        onDelete = component::onDelete,
+                        onItemClick = {
+                            selectedItem.value =
+                                if (selectedItem.value?.url == it.url) (if (selectedItem.value != null) null else it) else it
+                        },
+                        showBorders = state.value.showBorders,
+                        onHide = component::hideImage
+                    )
+                    Box(
+                        modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                            .navigationBarsPadding().padding(16.dp)
+                    ) {
+                        PhotoPickerWrapper(component::addImages) { onClick ->
+                            FloatingActionButton(
+                                onClick = onClick,
+                                containerColor = Color.Black,
+                                contentColor = Color.White,
+                                modifier = Modifier.align(Alignment.Center)
+                            ) {
+                                Icon(
+                                    imageVector = TablerIcons.Plus,
+                                    contentDescription = null
+                                )
+                            }
+                        }
+                        if (hasHeader) {
+                            Menu(
+                                uuid = state.value.uuid,
+                                addPlaceholder = component::addPlaceholder,
+                                reset = component::reset,
+                                toggleBorders = { component.toggleBorders() },
+                                icon = {
+                                    Icon(
+                                        imageVector = TablerIcons.Dots,
+                                        contentDescription = "Menu",
+                                        tint = Color.White
+                                    )
+                                },
+                                modifier = Modifier.align(Alignment.CenterEnd)
                             )
                         }
                     }
-                    if (hasHeader) {
-                        Menu(
-                            uuid = state.value.uuid,
-                            addPlaceholder = component::addPlaceholder,
-                            reset = component::reset,
-                            toggleBorders = { component.toggleBorders() },
-                            icon = {
-                                Icon(
-                                    imageVector = TablerIcons.Dots,
-                                    contentDescription = "Menu",
-                                    tint = Color.White
-                                )
-                            },
-                            modifier = Modifier.align(Alignment.CenterEnd)
+                }
+            }
+
+            if (isWide) {
+                Row(Modifier.fillMaxSize()) {
+                    Box(Modifier.weight(1f).fillMaxHeight()) { feedArea() }
+                    Box(Modifier.width(320.dp).fillMaxHeight()) {
+                        BottomContainer(
+                            selectedItem = selectedItem,
+                            component = component,
+                            state = state.value,
+                            sidePanel = true
                         )
                     }
                 }
+            } else {
+                Column(Modifier.fillMaxSize()) {
+                    Box(Modifier.weight(1f)) { feedArea() }
+                    BottomContainer(
+                        selectedItem = selectedItem,
+                        component = component,
+                        state = state.value,
+                        sidePanel = false
+                    )
+                }
             }
-            BottomContainer(selectedItem = selectedItem, component = component, state = state.value)
         }
     }
 }
@@ -168,96 +201,170 @@ private fun TopBar(
 private fun BottomContainer(
     selectedItem: MutableState<DisplayItem.SupabaseItem?>,
     component: FeedComponent,
-    state: FeedViewState
+    state: FeedViewState,
+    sidePanel: Boolean
 ) {
-    AnimatedVisibility(
-        visible = selectedItem.value != null,
-        enter = fadeIn() + expandVertically(),
-        exit = fadeOut() + shrinkVertically()
-    ) {
-        LaunchedEffect(Unit) {
-            component.fetchPossibleImages()
-        }
-
-        val lazyListState = rememberLazyGridState()
-
-        var selectionMode by remember { mutableStateOf(false) }
-        val selectedPaths = remember { mutableStateOf(setOf<String>()) }
-
-        // Reset selection when panel is closed
-        LaunchedEffect(selectedItem.value) {
-            if (selectedItem.value == null) {
-                selectionMode = false
-                selectedPaths.value = emptySet()
-            }
-        }
-
-        LaunchedEffect(state.storedImages, selectedItem.value?.url) {
-            val index =
-                state.storedImages.map { it.url }.indexOf(selectedItem.value?.url)
-            if (index != -1) {
-                lazyListState.animateScrollToItem((index - 1).coerceAtLeast(0))
-            }
-        }
-
-        Column(
-            Modifier
-                .background(Color.White)
-                .navigationBarsPadding()
+    if (sidePanel) {
+        BottomContainerContent(selectedItem, component, state, sidePanel = true)
+    } else {
+        AnimatedVisibility(
+            visible = selectedItem.value != null,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
         ) {
-            Row(modifier = Modifier.align(Alignment.End), verticalAlignment = Alignment.CenterVertically) {
-                if (selectionMode) {
-                    // Delete selected button
-                    IconButton(
-                        onClick = {
-                            selectedPaths.value.forEach { path -> component.removeImage(path) }
-                            selectedPaths.value = emptySet()
-                            selectionMode = false
-                        }
-                    ) {
-                        Icon(
-                            imageVector = TablerIcons.Trash,
-                            contentDescription = "Delete selected",
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    // Cancel selection
-                    IconButton(onClick = {
-                        selectionMode = false
+            BottomContainerContent(selectedItem, component, state, sidePanel = false)
+        }
+    }
+}
+
+@Composable
+@OptIn(ExperimentalFoundationApi::class)
+private fun BottomContainerContent(
+    selectedItem: MutableState<DisplayItem.SupabaseItem?>,
+    component: FeedComponent,
+    state: FeedViewState,
+    sidePanel: Boolean
+) {
+    LaunchedEffect(Unit) {
+        component.fetchPossibleImages()
+    }
+
+    val lazyListState = rememberLazyGridState()
+
+    var selectionMode by remember { mutableStateOf(false) }
+    val selectedPaths = remember { mutableStateOf(setOf<String>()) }
+
+    // Reset selection when panel is closed
+    LaunchedEffect(selectedItem.value) {
+        if (selectedItem.value == null) {
+            selectionMode = false
+            selectedPaths.value = emptySet()
+        }
+    }
+
+    LaunchedEffect(state.storedImages, selectedItem.value?.url) {
+        val index =
+            state.storedImages.map { it.url }.indexOf(selectedItem.value?.url)
+        if (index != -1) {
+            lazyListState.animateScrollToItem((index - 1).coerceAtLeast(0))
+        }
+    }
+
+    val bg = if (sidePanel) Color.Black else Color.White
+    val fg = if (sidePanel) Color.White else Color.Black
+    Column(
+        Modifier
+            .background(bg)
+            .then(if (sidePanel) Modifier.fillMaxSize() else Modifier)
+            .navigationBarsPadding()
+    ) {
+        Row(
+            modifier = if (sidePanel) Modifier.fillMaxWidth() else Modifier.align(Alignment.End),
+            horizontalArrangement = if (sidePanel) Arrangement.SpaceBetween else Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (sidePanel) {
+                Text(
+                    text = if (selectedItem.value == null) "No image selected" else "",
+                    color = fg,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+            if (selectionMode) {
+                IconButton(
+                    onClick = {
+                        selectedPaths.value.forEach { path -> component.removeImage(path) }
                         selectedPaths.value = emptySet()
-                    }) {
+                        selectionMode = false
+                    }
+                ) {
+                    Icon(
+                        imageVector = TablerIcons.Trash,
+                        contentDescription = "Delete selected",
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                IconButton(onClick = {
+                    selectionMode = false
+                    selectedPaths.value = emptySet()
+                }) {
+                    Icon(
+                        imageVector = TablerIcons.X,
+                        contentDescription = "Cancel selection",
+                        tint = fg,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            } else {
+                PhotoPickerWrapper(addImages = component::storeImages) { onClick ->
+                    IconButton(onClick = onClick) {
                         Icon(
-                            imageVector = TablerIcons.X,
-                            contentDescription = "Cancel selection",
-                            tint = Color.Black,
+                            imageVector = TablerIcons.Upload,
+                            contentDescription = "Upload",
+                            tint = fg,
                             modifier = Modifier.size(20.dp)
                         )
                     }
-                } else {
-                    PhotoPickerWrapper(addImages = component::storeImages) { onClick ->
-                        IconButton(onClick = onClick) {
-                            Icon(
-                                imageVector = TablerIcons.Upload,
-                                contentDescription = "Upload",
-                                tint = Color.Black,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
+                }
+                if (!sidePanel) {
                     IconButton(onClick = { selectedItem.value = null }) {
                         Icon(
                             imageVector = TablerIcons.X,
                             contentDescription = "Close",
-                            tint = Color.Black,
+                            tint = fg,
                             modifier = Modifier.size(20.dp)
                         )
                     }
                 }
             }
+            }
+        }
 
+        val itemClick: (String, String, Boolean) -> Unit = { path, url, isSelected ->
+            if (selectionMode) {
+                selectedPaths.value = if (isSelected) {
+                    selectedPaths.value - path
+                } else {
+                    selectedPaths.value + path
+                }
+                if (selectedPaths.value.isEmpty()) selectionMode = false
+            } else {
+                selectedItem.value?.let { current ->
+                    component.exchangeImage(current, url)
+                    selectedItem.value = current.copy(url = url)
+                }
+            }
+        }
+
+        if (sidePanel) {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(3),
+                state = lazyListState,
+                modifier = Modifier.fillMaxSize(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(8.dp)
+            ) {
+                itemsIndexed(state.storedImages) { _, (path, url) ->
+                    val isSelected = selectedPaths.value.contains(path)
+                    val isActive = !selectionMode && selectedItem.value?.url == url
+                    StoredImageCell(
+                        url = url,
+                        isSelected = isSelected,
+                        isActive = isActive,
+                        onClick = { itemClick(path, url, isSelected) },
+                        onLongClick = {
+                            selectionMode = true
+                            selectedPaths.value = selectedPaths.value + path
+                        },
+                        modifier = Modifier.fillMaxWidth().height(96.dp)
+                    )
+                }
+            }
+        } else {
             val rows = if (state.storedImages.size > 10) 2 else 1
-
             LazyHorizontalGrid(
                 rows = GridCells.Fixed(rows),
                 state = lazyListState,
@@ -266,58 +373,60 @@ private fun BottomContainer(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(8.dp)
             ) {
-                itemsIndexed(state.storedImages) { i, (path, url) ->
+                itemsIndexed(state.storedImages) { _, (path, url) ->
                     val isSelected = selectedPaths.value.contains(path)
                     val isActive = !selectionMode && selectedItem.value?.url == url
-
-                    Box(
-                        modifier = Modifier
-                            .size(72.dp)
-                            .combinedClickable(
-                                onClick = {
-                                    if (selectionMode) {
-                                        selectedPaths.value = if (isSelected) {
-                                            selectedPaths.value - path
-                                        } else {
-                                            selectedPaths.value + path
-                                        }
-                                        // Exit selection mode if nothing selected
-                                        if (selectedPaths.value.isEmpty()) selectionMode = false
-                                    } else {
-                                        component.exchangeImage(selectedItem.value, url)
-                                        selectedItem.value = selectedItem.value?.copy(url = url)
-                                    }
-                                },
-                                onLongClick = {
-                                    selectionMode = true
-                                    selectedPaths.value = selectedPaths.value + path
-                                }
-                            )
-                            .then(
-                                when {
-                                    isSelected -> Modifier.border(2.dp, MaterialTheme.colorScheme.error)
-                                    isActive -> Modifier.border(2.dp, MaterialTheme.colorScheme.primary)
-                                    else -> Modifier
-                                }
-                            )
-                    ) {
-                        SubcomposeAsyncImage(
-                            model = url,
-                            loading = { ImageLoader() },
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                        if (isSelected) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(MaterialTheme.colorScheme.error.copy(alpha = 0.25f))
-                            )
-                        }
-                    }
+                    StoredImageCell(
+                        url = url,
+                        isSelected = isSelected,
+                        isActive = isActive,
+                        onClick = { itemClick(path, url, isSelected) },
+                        onLongClick = {
+                            selectionMode = true
+                            selectedPaths.value = selectedPaths.value + path
+                        },
+                        modifier = Modifier.size(72.dp)
+                    )
                 }
             }
+        }
+    }
+}
+
+@Composable
+@OptIn(ExperimentalFoundationApi::class)
+private fun StoredImageCell(
+    url: String,
+    isSelected: Boolean,
+    isActive: Boolean,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .then(
+                when {
+                    isSelected -> Modifier.border(2.dp, MaterialTheme.colorScheme.error)
+                    isActive -> Modifier.border(2.dp, MaterialTheme.colorScheme.primary)
+                    else -> Modifier
+                }
+            )
+    ) {
+        SubcomposeAsyncImage(
+            model = url,
+            loading = { ImageLoader() },
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
+        if (isSelected) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.error.copy(alpha = 0.25f))
+            )
         }
     }
 }
