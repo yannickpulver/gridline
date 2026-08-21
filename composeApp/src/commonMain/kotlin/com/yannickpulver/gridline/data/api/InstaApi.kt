@@ -1,6 +1,6 @@
 package com.yannickpulver.gridline.data.api
 
-import com.yannickpulver.gridline.data.dto.InstaPostsDto
+import com.yannickpulver.gridline.data.dto.InstaFeedDto
 import com.yannickpulver.gridline.data.prefs.AppPrefs
 import com.yannickpulver.gridline.ui.feed.model.DisplayItem
 import com.yannickpulver.gridline.ui.snackbar.SnackbarStateHolder
@@ -23,7 +23,7 @@ class InstaApi(val appPrefs: AppPrefs, val client: HttpClient, val json: Json) {
     }
 
     private suspend fun getFeedByUsername(userName: String): List<DisplayItem.InstaItem> {
-        val url = "https://i.instagram.com/api/v1/users/web_profile_info/?username=$userName"
+        val url = "https://i.instagram.com/api/v1/feed/user/$userName/username/?count=12"
         val result = client.get(url) {
             header("x-ig-app-id", "567067343352427")
         }
@@ -31,22 +31,20 @@ class InstaApi(val appPrefs: AppPrefs, val client: HttpClient, val json: Json) {
             if (result.status.value != 200) {
                 null
             } else {
-                json.decodeFromString<InstaPostsDto>(result.body())
+                json.decodeFromString<InstaFeedDto>(result.body())
             }
         }
 
         return response
             .onFailure { SnackbarStateHolder.error("Couldn't fetch Instagram API") }
-            .getOrNull()?.let { root ->
-                root.data.user.edgeOwnerToTimelineMedia.edges.map { edge ->
-                    val node = edge.node
-                    println(node)
-                    DisplayItem.InstaItem(
-                        url = node.displayUrl
-                            ?: node.thumbnailResources?.lastOrNull()?.src.orEmpty(),
-                        publishedAt = node.takenAtTimestamp,
-                    )
-                }
+            .getOrNull()?.items
+            ?.mapNotNull { item ->
+                val imageUrl = item.imageVersions?.candidates?.firstOrNull()?.url
+                    ?: return@mapNotNull null
+                DisplayItem.InstaItem(
+                    url = imageUrl,
+                    publishedAt = item.takenAt,
+                )
             }.orEmpty()
     }
 }
