@@ -2,7 +2,7 @@
 platform :android do
     lane :increment_build do
         increment_version_code(
-            gradle_file_path: "composeApp/build.gradle.kts",
+            gradle_file_path: "androidApp/build.gradle.kts",
             version_code: ENV["GITHUB_RUN_NUMBER"].to_i + 13 # existing bump
         )
     end
@@ -10,7 +10,7 @@ platform :android do
     desc "Build the Android app"
     lane :build do |options|
         increment_build
-        gradle(task: "bundleRelease")
+        gradle(task: ":androidApp:bundleRelease")
     end
 
     desc "Deploy a new version to the Google Play Store"
@@ -19,7 +19,7 @@ platform :android do
         # Upload to the Play Store using supply
         supply(
           track: "internal",
-          aab: "composeApp/build/outputs/bundle/release/composeApp-release.aab",
+          aab: "androidApp/build/outputs/bundle/release/androidApp-release.aab",
           skip_upload_metadata: true,
           skip_upload_images: true,
           skip_upload_screenshots: true,
@@ -80,12 +80,12 @@ end
 platform :macos do
     desc "Build Macos app"
     lane :buildDmg do |options|
-        gradle(task: "packageReleaseDmg")
+        gradle(task: ":composeApp:packageReleaseDmg")
     end
 
     desc "Build Macos package"
     lane :buildPkg do |options|
-        gradle(task: "packageReleasePkg -PappStore=true")
+        gradle(task: ":composeApp:packageReleasePkg -PappStore=true")
     end
 
     desc "Deploy"
@@ -95,7 +95,6 @@ platform :macos do
         version_number = File.read("../VERSION").strip
         notarize(
             package: "composeApp/build/compose/binaries/main-release/dmg/Gridline-#{version_number}.dmg",
-            bundle_id: "com.yannickpulver.gridline",
             api_key_path: "fastlane/mac-api-key.json",
             print_log: "true"
         )

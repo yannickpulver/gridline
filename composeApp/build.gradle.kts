@@ -1,28 +1,37 @@
 import com.android.build.gradle.internal.cxx.configure.gradleLocalProperties
 import com.codingfeline.buildkonfig.compiler.FieldSpec
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.time.LocalDateTime
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
-    alias(libs.plugins.androidApplication)
-    alias(libs.plugins.jetbrainsCompose)
+    alias(libs.plugins.androidMultiplatformLibrary)
+    alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.buildKonfig)
-    id("kotlin-parcelize")
 }
 
 kotlin {
-    androidTarget {
+    android {
+        namespace = "com.yannickpulver.gridline.shared"
+        compileSdk = libs.versions.android.compileSdk.get().toInt()
+        minSdk = libs.versions.android.minSdk.get().toInt()
+
         compilerOptions {
-            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8)
+            jvmTarget = JvmTarget.JVM_11
+        }
+        androidResources {
+            enable = true
         }
     }
 
     jvm("desktop")
 
     listOf(
-        iosX64(),
         iosArm64(),
         iosSimulatorArm64()
     ).forEach { iosTarget ->
@@ -33,33 +42,29 @@ kotlin {
     }
 
     sourceSets {
-        val desktopMain by getting
+        val desktopMain = getByName("desktopMain")
 
         androidMain.dependencies {
-            implementation(libs.compose.ui.tooling.preview)
+            implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.activity.compose)
             implementation(libs.ktor.client.okhttp)
             implementation(libs.kotlinx.coroutines.android)
-            implementation(libs.androidx.appcompat)
-
-            implementation(libs.koin.androidx.compose)
             implementation(libs.koin.android)
-
             implementation(libs.peekaboo.image.picker)
             implementation(libs.androidx.exifinterface)
         }
         commonMain.dependencies {
-            implementation(compose.runtime)
-            implementation(compose.foundation)
-            implementation(compose.material3)
-            implementation(compose.ui)
-            implementation(compose.components.resources)
+            implementation(libs.compose.runtime)
+            implementation(libs.compose.foundation)
+            implementation(libs.compose.material3)
+            implementation(libs.compose.ui)
+            implementation(libs.compose.components.resources)
+            implementation(libs.compose.uiToolingPreview)
+            implementation(libs.compose.reorderable)
             implementation(libs.tabler.icons)
-            implementation(compose.components.resources)
+
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.logging)
-
-            implementation(libs.compose.reorderable)
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.serialization.json)
 
@@ -68,36 +73,27 @@ kotlin {
             implementation(libs.supabase.storage)
             implementation(libs.supabase.realtime)
 
-            implementation(libs.koin.core)
+            api(project.dependencies.platform(libs.koin.bom))
+            api(libs.koin.core)
             implementation(libs.koin.compose)
 
-            implementation(libs.decompose)
+            api(libs.decompose)
+            implementation(libs.decompose.extensions.compose)
 
             implementation(libs.multiplatform.settings)
             implementation(libs.multiplatform.settings.serialization)
             implementation(libs.kermit)
 
-            implementation(libs.kotlinx.datetime)
-            implementation(libs.ksoup)
-            implementation(libs.ksoup.network)
-
-            implementation(libs.decompose.extensions.compose)
-
-            implementation(libs.mpfilepicker)
-
             implementation(libs.coil)
             implementation(libs.coil.compose)
             implementation(libs.coil.network)
-
-
         }
         desktopMain.dependencies {
             implementation(compose.desktop.currentOs)
             implementation(libs.ktor.client.java)
-            //implementation(libs.ktor.util)
             implementation(libs.kotlinx.coroutines.swing)
+            implementation(libs.mpfilepicker)
         }
-
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)
             implementation(libs.peekaboo.image.picker)
@@ -109,63 +105,8 @@ kotlin {
     }
 }
 
-
-android {
-    namespace = "com.yannickpulver.gridline"
-    compileSdk = libs.versions.android.compileSdk.get().toInt()
-
-    sourceSets["main"].manifest.srcFile("src/androidMain/AndroidManifest.xml")
-    sourceSets["main"].res.srcDirs("src/androidMain/res")
-    sourceSets["main"].resources.srcDirs("src/commonMain/resources")
-
-    defaultConfig {
-        applicationId = "com.yannickpulver.gridline"
-        minSdk = libs.versions.android.minSdk.get().toInt()
-        targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 14
-        versionName = rootProject.file("VERSION").readText().trim()
-    }
-    packaging {
-        resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
-        }
-    }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
-    }
-    dependencies {
-        debugImplementation(libs.compose.ui.tooling)
-    }
-
-    signingConfigs {
-        create("release") {
-            storeFile = file("release.jks")
-            storePassword = gradleLocalProperties(rootDir, providers).getOrDefault(
-                "signingKey",
-                null
-            ) as String? ?: System.getenv("ANDROID_SIGNING_KEY") ?: ""
-            keyAlias = gradleLocalProperties(rootDir, providers).getOrDefault(
-                "signingAlias",
-                null
-            ) as String? ?: System.getenv("ANDROID_SIGNING_ALIAS") ?: ""
-            keyPassword = gradleLocalProperties(rootDir, providers).getOrDefault(
-                "signingKey",
-                null
-            ) as String? ?: System.getenv("ANDROID_SIGNING_KEY") ?: ""
-
-        }
-    }
-    buildTypes {
-        getByName("release") {
-            isMinifyEnabled = true
-            signingConfig = signingConfigs.getByName("release")
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
-        }
-    }
+dependencies {
+    androidRuntimeClasspath(libs.compose.uiTooling)
 }
 
 compose.desktop {
@@ -180,6 +121,8 @@ compose.desktop {
             val isAppStore = project.property("appStore").toString().toBoolean()
             macOS {
                 bundleID = "com.yannickpulver.gridline"
+                // App Store Connect rejects a build number it has seen before, so every build gets a new one
+                packageBuildVersion = LocalDateTime.now(ZoneOffset.UTC).format(DateTimeFormatter.ofPattern("yyyyMMdd.HHmm"))
                 appStore = isAppStore
                 iconFile.set(project.file("icon.icns"))
                 minimumSystemVersion = "12.0"
@@ -198,7 +141,6 @@ compose.desktop {
                     entitlementsFile.set(project.file("default-entitlements.plist"))
                 }
             }
-
         }
 
         buildTypes.release.proguard {
@@ -225,4 +167,3 @@ buildkonfig {
         )
     }
 }
-

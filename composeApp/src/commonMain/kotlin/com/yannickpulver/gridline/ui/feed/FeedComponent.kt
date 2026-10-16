@@ -2,6 +2,7 @@ package com.yannickpulver.gridline.ui.feed
 
 import co.touchlab.kermit.Logger
 import com.arkivanov.decompose.ComponentContext
+import com.arkivanov.essenty.lifecycle.doOnResume
 import com.yannickpulver.gridline.data.api.InstaApi
 import com.yannickpulver.gridline.data.api.SupabaseApi
 import com.yannickpulver.gridline.data.dto.ImageDto
@@ -13,6 +14,7 @@ import com.yannickpulver.gridline.ui.snackbar.SnackbarStateHolder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -58,12 +60,9 @@ class FeedComponent(componentContext: ComponentContext, private val onReset: () 
 
     private val ioScope = CoroutineScope(Dispatchers.IO)
 
+    private var refreshJob: Job? = null
+
     init {
-
-        ioScope.launch {
-            _supaFeed.update { supabaseApi.fetchImages().asItems() }
-        }
-
         ioScope.launch {
             supabaseApi.observeImages(ioScope).map { it.asItems() }.collect { images ->
                 _supaFeed.update { images }
@@ -71,6 +70,22 @@ class FeedComponent(componentContext: ComponentContext, private val onReset: () 
         }
 
         ioScope.launch {
+            observeSharedImages().collect { images ->
+                addImages(images)
+            }
+        }
+
+        // Fires on first start and every time the app comes back to the foreground
+        lifecycle.doOnResume { refresh() }
+    }
+
+    private fun refresh() {
+        refreshJob?.cancel()
+        refreshJob = ioScope.launch {
+            launch {
+                _supaFeed.update { supabaseApi.fetchImages().asItems() }
+            }
+
             instaApi.getFeed().collect { posts ->
                 if (posts.isEmpty()) return@collect
                 val latestIndex = posts.withIndex().maxBy { it.value.publishedAt ?: 0 }.index
@@ -79,12 +94,6 @@ class FeedComponent(componentContext: ComponentContext, private val onReset: () 
                     _instaPinnedFeed.update { pinned.map { it.value } }
                     _instaFeed.update { posts.map { it.value } }
                 }
-            }
-        }
-
-        ioScope.launch {
-            observeSharedImages().collect { images ->
-                addImages(images)
             }
         }
     }

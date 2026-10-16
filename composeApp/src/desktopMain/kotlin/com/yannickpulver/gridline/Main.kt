@@ -23,11 +23,14 @@ import androidx.compose.ui.draganddrop.DragAndDropTarget
 import androidx.compose.ui.draganddrop.DragData
 import androidx.compose.ui.draganddrop.dragData
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import com.arkivanov.decompose.DefaultComponentContext
+import com.arkivanov.decompose.ExperimentalDecomposeApi
+import com.arkivanov.decompose.extensions.compose.lifecycle.LifecycleController
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import com.arkivanov.essenty.lifecycle.LifecycleRegistry
 import com.yannickpulver.gridline.data.api.SupabaseApi
@@ -45,6 +48,7 @@ import java.io.File
 
 val koin = initKoin().koin
 
+@OptIn(ExperimentalDecomposeApi::class)
 fun main() {
     val lifecycle = LifecycleRegistry()
 
@@ -57,11 +61,14 @@ fun main() {
         }
 
     application {
+        val windowState = rememberWindowState(width = 400.dp, height = 800.dp)
         Window(
             onCloseRequest = ::exitApplication,
-            state = rememberWindowState(width = 400.dp, height = 800.dp),
+            state = windowState,
             title = "Gridline",
         ) {
+            // Resumes the lifecycle when the window gains focus, pauses it when focus is lost
+            LifecycleController(lifecycle, windowState, LocalWindowInfo.current)
             AppTheme(useDarkTheme = false, dynamicColor = false) {
                 Box(Modifier.fillMaxSize()) {
                     MainApp(rootComponent)
