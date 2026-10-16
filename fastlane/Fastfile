@@ -95,7 +95,6 @@ platform :macos do
         version_number = File.read("../VERSION").strip
         notarize(
             package: "composeApp/build/compose/binaries/main-release/dmg/Gridline-#{version_number}.dmg",
-            bundle_id: "com.yannickpulver.gridline",
             api_key_path: "fastlane/mac-api-key.json",
             print_log: "true"
         )
