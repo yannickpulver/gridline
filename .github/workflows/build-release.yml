@@ -4,7 +4,7 @@ name: "Release"
 # so a release only runs when VERSION changes (or when started by hand).
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "chore/pipeline-techstack" ] # TEMP: test run on branch, remove before merge
     paths: [ "VERSION" ]
   workflow_dispatch:
 
