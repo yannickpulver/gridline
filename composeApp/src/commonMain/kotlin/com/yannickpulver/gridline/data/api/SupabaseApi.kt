@@ -101,7 +101,7 @@ class SupabaseApi(
     }
 
     private suspend fun putToStorage(name: String, bytes: ByteArray): String {
-        val buckets = client.storage.retrieveBuckets()
+        val buckets = client.storage.listBuckets()
         if (buckets.any { it.id != BUCKET_IMAGES_KEY }) {
             client.storage.createBucket(id = BUCKET_IMAGES_KEY) {
                 public = true

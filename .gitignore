@@ -24,7 +24,7 @@ mac-api-key.json
 Gridline.app.dSYM.zip
 Gridline.ipa
 fastlane/report.xml
-composeApp/release.jks
+*.jks
 composeApp/embedded.provisionprofile
 composeApp/runtime.provisionprofile
 composeApp/entitlements.plist

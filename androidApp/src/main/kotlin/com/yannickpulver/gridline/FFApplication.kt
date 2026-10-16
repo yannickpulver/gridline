@@ -1,4 +1,4 @@
-package com.yannickpulver
+package com.yannickpulver.gridline
 
 import android.app.Application
 import com.yannickpulver.gridline.di.initKoin
