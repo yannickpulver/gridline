@@ -2,6 +2,9 @@ import com.android.build.gradle.internal.cxx.configure.gradleLocalProperties
 import com.codingfeline.buildkonfig.compiler.FieldSpec
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.time.LocalDateTime
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -118,6 +121,8 @@ compose.desktop {
             val isAppStore = project.property("appStore").toString().toBoolean()
             macOS {
                 bundleID = "com.yannickpulver.gridline"
+                // App Store Connect rejects a build number it has seen before, so every build gets a new one
+                packageBuildVersion = LocalDateTime.now(ZoneOffset.UTC).format(DateTimeFormatter.ofPattern("yyyyMMdd.HHmm"))
                 appStore = isAppStore
                 iconFile.set(project.file("icon.icns"))
                 minimumSystemVersion = "12.0"

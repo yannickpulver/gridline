@@ -1,28 +1,37 @@
 name: "Release"
 
+# The stores reject a build whose version was already uploaded,
+# so a release only runs when VERSION changes (or when started by hand).
 on:
   push:
     branches: [ "main" ]
-    paths-ignore:
-      - '**/README.md'
+    paths: [ "VERSION" ]
+  workflow_dispatch:
 
+concurrency:
+  group: release
+  cancel-in-progress: false
 
-#on:
-#  push:
-#    tags:
-#      - "v*"
+env:
+  SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+  SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
 
 jobs:
   deploy-ios:
     runs-on: macos-26
     steps:
-      - uses: actions/checkout@v3
-      - name: Install Fastlane
-        run: |
-          gem install bundler
-          bundle install
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: 'zulu'
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+          bundler-cache: true
 
-      - name: Build with Gradle
+      - name: Build and upload to TestFlight
         run: bundle exec fastlane ios deploy
         env:
           MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
@@ -35,158 +44,132 @@ jobs:
           ITC_TEAM_ID: ${{ secrets.ITC_TEAM_ID }}
           CERT_REPO: ${{ secrets.CERT_REPO }}
           APPLE_ID_TESTFLIGHT: ${{ secrets.APPLE_ID_TESTFLIGHT }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-
 
   deploy-android:
-    runs-on: macos-14
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Install Fastlane
-        run: |
-          gem install bundler
-          bundle install
-
-      - name: Decode Keystore
-        id: decode_keystore
-        uses: timheuer/base64-to-file@v1.2
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
         with:
-          fileName: 'release.jks'
-          fileDir: './composeApp/'
-          encodedString: ${{ secrets.ANDROID_KEYSTORE }}
+          distribution: 'zulu'
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+          bundler-cache: true
 
-      - name: Write secret to file
-        run: echo "$KEY" > fastlane/play-console-credentials.json
+      - name: Write signing and Play Console credentials
+        run: |
+          echo "$ANDROID_KEYSTORE" | base64 --decode > androidApp/release.jks
+          echo "$PLAY_CONSOLE_CREDENTIALS_JSON" > fastlane/play-console-credentials.json
         env:
-          KEY: ${{ secrets.PLAY_CONSOLE_CREDENTIALS_JSON }}
+          ANDROID_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
+          PLAY_CONSOLE_CREDENTIALS_JSON: ${{ secrets.PLAY_CONSOLE_CREDENTIALS_JSON }}
 
-      - name: Build with Gradle
+      - name: Build and upload to Play Store
         run: bundle exec fastlane android deploy
         env:
           ANDROID_SIGNING_KEY: ${{ secrets.ANDROID_SIGNING_KEY }}
           ANDROID_SIGNING_ALIAS: ${{ secrets.ANDROID_SIGNING_ALIAS }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
 
   deploy-mac-store:
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
-      - uses: actions/checkout@v3
-      - name: set up JDK
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
         with:
           distribution: 'zulu'
           java-version: 21
-
-      - name: Install Fastlane
-        run: |
-          gem install bundler
-          bundle install
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+          bundler-cache: true
 
       - name: Import signing certificate
-        uses: apple-actions/import-codesign-certs@v2
+        uses: apple-actions/import-codesign-certs@v7
         with:
           p12-file-base64: ${{ secrets.SIGNING_CERTIFICATE_P12_DATA_MACOS_APPSTORE }}
           p12-password: ${{ secrets.SIGNING_CERTIFICATE_PASSWORD_MACOS_APPSTORE }}
 
-      - name: Decode Runtime Provision Profile
-        uses: timheuer/base64-to-file@v1.2
-        with:
-          fileName: 'runtime.provisionprofile'
-          fileDir: './composeApp/'
-          encodedString: ${{ secrets.RUNTIME_PROVISIONPROFILE }}
+      - name: Write provisioning profiles and entitlements
+        run: |
+          echo "$RUNTIME_PROVISIONPROFILE" | base64 --decode > composeApp/runtime.provisionprofile
+          echo "$EMBEDDED_PROVISIONPROFILE" | base64 --decode > composeApp/embedded.provisionprofile
+          echo "$ENTITLEMENTS" | base64 --decode > composeApp/entitlements.plist
+        env:
+          RUNTIME_PROVISIONPROFILE: ${{ secrets.RUNTIME_PROVISIONPROFILE }}
+          EMBEDDED_PROVISIONPROFILE: ${{ secrets.EMBEDDED_PROVISIONPROFILE }}
+          ENTITLEMENTS: ${{ secrets.ENTITLEMENTS }}
 
-      - name: Decode Embedded Provision Profile
-        uses: timheuer/base64-to-file@v1.2
-        with:
-          fileName: 'embedded.provisionprofile'
-          fileDir: './composeApp/'
-          encodedString: ${{ secrets.EMBEDDED_PROVISIONPROFILE }}
-
-      - name: Decode Entitlements
-        uses: timheuer/base64-to-file@v1.2
-        with:
-          fileName: 'entitlements.plist'
-          fileDir: './composeApp/'
-          encodedString: ${{ secrets.ENTITLEMENTS }}
-
-      - name: Build with Gradle
+      - name: Build and upload to Mac App Store
         run: bundle exec fastlane macos deploy_store
         env:
-          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
-          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           FASTLANE_PASSWORD: ${{ secrets.FASTLANE_PASSWORD }}
           FASTLANE_USER: ${{ secrets.FASTLANE_USER }}
           FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD: ${{ secrets.FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           TEAM_ID: ${{ secrets.TEAM_ID }}
           ITC_TEAM_ID: ${{ secrets.ITC_TEAM_ID }}
-          CERT_REPO: ${{ secrets.CERT_REPO }}
           APPLE_ID_TESTFLIGHT: ${{ secrets.APPLE_ID_TESTFLIGHT }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
 
       - name: Print error logs on failure
         if: failure()
         run: |
+          shopt -s globstar nullglob
           for f in composeApp/build/compose/logs/**/*.txt; do echo "=== $f ==="; cat "$f"; done
 
   build-mac:
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
-      - uses: actions/checkout@v3
-      - name: set up JDK
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
         with:
           distribution: 'zulu'
           java-version: 21
-
-      - name: Install Fastlane
-        run: |
-          gem install bundler
-          bundle install
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+          bundler-cache: true
 
       - name: Import signing certificate
-        uses: apple-actions/import-codesign-certs@v2
+        uses: apple-actions/import-codesign-certs@v7
         with:
           p12-file-base64: ${{ secrets.SIGNING_CERTIFICATE_P12_DATA_MACOS }}
           p12-password: ${{ secrets.SIGNING_CERTIFICATE_PASSWORD_MACOS }}
 
-      - name: Write secret to file
+      - name: Write App Store Connect API key
         run: echo "$KEY" > fastlane/mac-api-key.json
         env:
           KEY: ${{ secrets.APPSTORE_CONNECT_API_JSON }}
 
-      - name: Build with Gradle
+      - name: Build and notarize DMG
         run: bundle exec fastlane macos deploy_dmg
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
 
-      - name: Upload DMG as Artifact
-        uses: actions/upload-artifact@v4
+      - name: Upload DMG as artifact
+        uses: actions/upload-artifact@v7
         with:
           name: Gridline-dmg
           path: composeApp/build/compose/binaries/main-release/dmg/*.dmg
+          retention-days: 30
 
   release-mac:
     needs: [ build-mac, deploy-ios, deploy-android, deploy-mac-store ]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v3
-      - id: get_version
-        run: echo "version=$(cat VERSION)" >> $GITHUB_OUTPUT
-
-      - name: Download all workflow run artifacts
-        uses: actions/download-artifact@v4
-
-      - name: Upload binaries to release
-        uses: svenstaro/upload-release-action@v2
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
         with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: "./Gridline-dmg/Gridline-${{ steps.get_version.outputs.version }}.dmg"
-          tag: ${{ steps.get_version.outputs.version }}
-          overwrite: true
-          body: "Release ${{ steps.get_version.outputs.version }}"
-            
+          name: Gridline-dmg
+
+      - name: Upload DMG to GitHub release
+        run: |
+          VERSION=$(cat VERSION)
+          gh release view "$VERSION" >/dev/null 2>&1 || gh release create "$VERSION" --target "$GITHUB_SHA" --title "$VERSION" --notes "Release $VERSION"
+          gh release upload "$VERSION" "Gridline-$VERSION.dmg" --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
