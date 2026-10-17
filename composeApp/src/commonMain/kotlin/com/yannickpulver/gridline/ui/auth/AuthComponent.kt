@@ -32,9 +32,6 @@ class AuthComponent(
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var loginJob: Job? = null
 
-    /** Gridline ID from before, so existing grids survive the switch to Instagram Login. */
-    val existingUuid: String = prefs.getUuid().orEmpty()
-
     private val _waitingForLogin = MutableStateFlow(false)
     val waitingForLogin: StateFlow<Boolean> = _waitingForLogin
 
@@ -43,7 +40,7 @@ class AuthComponent(
     }
 
     /** Waits for the login in the browser to finish and returns the URL to open. */
-    fun startLogin(uuid: String): String {
+    fun startLogin(): String {
         val state = Uuid.random().toString()
         loginJob?.cancel()
         loginJob = scope.launch {
@@ -62,7 +59,7 @@ class AuthComponent(
                 SnackbarStateHolder.error("Instagram login timed out")
                 return@launch
             }
-            prefs.setInstaLogin(token, uuid.trim().ifEmpty { null })
+            prefs.setInstaLogin(token)
             navigateToFeed()
         }
         return instaApi.loginUrl(state)

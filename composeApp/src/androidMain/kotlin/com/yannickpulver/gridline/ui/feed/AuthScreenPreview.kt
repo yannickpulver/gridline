@@ -9,6 +9,6 @@ import com.yannickpulver.gridline.ui.theme.AppTheme
 @Composable
 private fun AuthScreenPreview() {
     AppTheme(useDarkTheme = false, dynamicColor = true) {
-        AuthContent(initialUuid = "", waitingForLogin = false, onLogin = {})
+        AuthContent(waitingForLogin = false, onLogin = {})
     }
 }

@@ -23,13 +23,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,17 +46,14 @@ fun AuthScreen(component: AuthComponent) {
     val waitingForLogin by component.waitingForLogin.collectAsState()
 
     AuthContent(
-        initialUuid = component.existingUuid,
         waitingForLogin = waitingForLogin,
-        onLogin = { uuid -> uriHandler.openUri(component.startLogin(uuid)) },
+        onLogin = { uriHandler.openUri(component.startLogin()) },
     )
 }
 
 @Composable
 @OptIn(ExperimentalResourceApi::class)
-fun AuthContent(initialUuid: String, waitingForLogin: Boolean, onLogin: (String) -> Unit) {
-    val uuid = remember { mutableStateOf(initialUuid) }
-
+fun AuthContent(waitingForLogin: Boolean, onLogin: () -> Unit) {
     Column(
         Modifier.fillMaxSize().systemBarsPadding().verticalScroll(rememberScrollState()).imePadding().padding(vertical = 24.dp, horizontal = 48.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -107,23 +101,10 @@ fun AuthContent(initialUuid: String, waitingForLogin: Boolean, onLogin: (String)
         )
         Spacer(Modifier.weight(0.5f))
 
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(
-                "If you already have a Gridline ID, enter it here. If you're starting fresh, you can skip this.",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            OutlinedTextField(
-                value = uuid.value,
-                onValueChange = { uuid.value = it },
-                label = { Text("Optional: Gridline ID") },
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
         Spacer(Modifier.weight(1f))
 
         Button(
-            onClick = { onLogin(uuid.value) },
+            onClick = onLogin,
             modifier = Modifier.fillMaxWidth().height(56.dp),
         ) {
             Text("Log in with Instagram")

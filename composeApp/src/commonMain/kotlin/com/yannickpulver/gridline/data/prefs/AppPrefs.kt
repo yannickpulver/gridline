@@ -18,9 +18,10 @@ import kotlin.uuid.Uuid
 class AppPrefs(private val settings: Settings, private val clock: Clock = Clock.System) {
     private val InstaItemListSerializer = ListSerializer(DisplayItem.InstaItem.serializer())
 
-    fun setInstaLogin(token: String, uuid: String? = null) {
+    /** Keeps an existing Gridline ID, so grids from before the Instagram Login stay. */
+    fun setInstaLogin(token: String) {
         setInstaToken(token)
-        settings.putString(KEY_UUID, uuid ?: getUuid() ?: Uuid.random().toString())
+        settings.putString(KEY_UUID, getUuid() ?: Uuid.random().toString())
     }
 
     fun hasUserInfo() = getInstaToken() != null
