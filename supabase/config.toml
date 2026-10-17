@@ -1,0 +1,5 @@
+project_id = "gridline"
+
+# Instagram redirects to the callback without a Supabase JWT
+[functions.instagram-auth]
+verify_jwt = false

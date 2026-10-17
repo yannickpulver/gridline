@@ -1,50 +1,86 @@
 package com.yannickpulver.gridline.data.api
 
-import com.yannickpulver.gridline.data.dto.InstaFeedDto
+import com.yannickpulver.gridline.BuildKonfig
+import com.yannickpulver.gridline.data.dto.InstaMediaResponseDto
+import com.yannickpulver.gridline.data.dto.InstaTokenDto
 import com.yannickpulver.gridline.data.prefs.AppPrefs
 import com.yannickpulver.gridline.ui.feed.model.DisplayItem
 import com.yannickpulver.gridline.ui.snackbar.SnackbarStateHolder
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
-import io.ktor.client.request.header
+import io.ktor.client.request.parameter
+import io.ktor.http.isSuccess
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import kotlinx.serialization.json.Json
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.days
+import kotlin.time.Instant
 
-class InstaApi(val appPrefs: AppPrefs, val client: HttpClient, val json: Json) {
+class InstaApi(
+    private val appPrefs: AppPrefs,
+    private val client: HttpClient,
+    private val clock: Clock = Clock.System,
+) {
+
+    private val authUrl = "${BuildKonfig.SUPABASE_URL.trimEnd('/')}/functions/v1/instagram-auth"
+
+    /** Opens Instagram's login page; the token is picked up afterwards with [fetchLoginToken]. */
+    fun loginUrl(state: String) = "$authUrl/login?state=$state"
+
+    /** Returns the token once the user finished the login in the browser, null while pending. */
+    suspend fun fetchLoginToken(state: String): String? {
+        val response = client.get("$authUrl/token") { parameter("state", state) }
+        if (!response.status.isSuccess()) return null
+        return response.body<InstaTokenDto>().accessToken
+    }
 
     fun getFeed(): Flow<List<DisplayItem.InstaItem>> = flow {
-        val userName = appPrefs.getUserName() ?: return@flow
+        val token = appPrefs.getInstaToken() ?: return@flow
         emit(appPrefs.getFeed())
-        val result = getFeedByUsername(userName)
+
+        // Keep the cached feed when Instagram fails, so the grid never goes empty
+        val result = runCatching { fetchMedia(refreshedToken(token)) }
+            .onFailure { SnackbarStateHolder.error("Couldn't fetch Instagram feed") }
+            .getOrNull() ?: return@flow
         emit(result)
         appPrefs.setFeed(result)
     }
 
-    private suspend fun getFeedByUsername(userName: String): List<DisplayItem.InstaItem> {
-        val url = "https://i.instagram.com/api/v1/feed/user/$userName/username/?count=12"
-        val result = client.get(url) {
-            header("x-ig-app-id", "567067343352427")
+    private suspend fun fetchMedia(token: String): List<DisplayItem.InstaItem> {
+        val response = client.get("https://graph.instagram.com/me/media") {
+            parameter("fields", "media_type,media_url,thumbnail_url,timestamp")
+            parameter("limit", 12)
+            parameter("access_token", token)
         }
-        val response = runCatching {
-            if (result.status.value != 200) {
-                null
-            } else {
-                json.decodeFromString<InstaFeedDto>(result.body())
-            }
-        }
+        check(response.status.isSuccess()) { "Instagram responded ${response.status}" }
 
-        return response
-            .onFailure { SnackbarStateHolder.error("Couldn't fetch Instagram API") }
-            .getOrNull()?.items
-            ?.mapNotNull { item ->
-                val imageUrl = item.imageVersions?.candidates?.firstOrNull()?.url
-                    ?: return@mapNotNull null
-                DisplayItem.InstaItem(
-                    url = imageUrl,
-                    publishedAt = item.takenAt,
-                )
-            }.orEmpty()
+        return response.body<InstaMediaResponseDto>().data.mapNotNull { media ->
+            DisplayItem.InstaItem(
+                url = media.imageUrl ?: return@mapNotNull null,
+                publishedAt = media.timestamp?.let(::parseTimestamp),
+            )
+        }
     }
+
+    /** Long-lived tokens last 60 days; refreshing daily keeps them alive while the app is used. */
+    private suspend fun refreshedToken(token: String): String {
+        val refreshedAt = appPrefs.getInstaTokenRefreshedAt()
+        if (clock.now() - refreshedAt < 1.days) return token
+
+        val refreshed = runCatching {
+            client.get("https://graph.instagram.com/refresh_access_token") {
+                parameter("grant_type", "ig_refresh_token")
+                parameter("access_token", token)
+            }.body<InstaTokenDto>().accessToken
+        }.getOrNull() ?: return token
+
+        appPrefs.setInstaToken(refreshed)
+        return refreshed
+    }
+
+    // Instagram sends "2024-05-01T10:00:00+0000", Instant.parse wants "+00:00"
+    private fun parseTimestamp(value: String): Long? = runCatching {
+        Instant.parse(value.replace(Regex("([+-]\\d{2})(\\d{2})$"), "$1:$2")).epochSeconds
+    }.getOrNull()
 }

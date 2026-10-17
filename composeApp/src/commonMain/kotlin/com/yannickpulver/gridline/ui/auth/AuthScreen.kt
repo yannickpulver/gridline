@@ -26,6 +26,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import gridline.composeapp.generated.resources.Res
@@ -43,14 +45,20 @@ import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun AuthScreen(component: AuthComponent) {
-    AuthContent(addUserName = component::setUsername)
+    val uriHandler = LocalUriHandler.current
+    val waitingForLogin by component.waitingForLogin.collectAsState()
+
+    AuthContent(
+        initialUuid = component.existingUuid,
+        waitingForLogin = waitingForLogin,
+        onLogin = { uuid -> uriHandler.openUri(component.startLogin(uuid)) },
+    )
 }
 
 @Composable
 @OptIn(ExperimentalResourceApi::class)
-fun AuthContent(addUserName: (String, String) -> Unit) {
-    val userName = remember { mutableStateOf("") }
-    val uuid = remember { mutableStateOf("") }
+fun AuthContent(initialUuid: String, waitingForLogin: Boolean, onLogin: (String) -> Unit) {
+    val uuid = remember { mutableStateOf(initialUuid) }
 
     Column(
         Modifier.fillMaxSize().systemBarsPadding().verticalScroll(rememberScrollState()).imePadding().padding(vertical = 24.dp, horizontal = 48.dp),
@@ -92,19 +100,12 @@ fun AuthContent(addUserName: (String, String) -> Unit) {
             color = MaterialTheme.colorScheme.onSurface
         )
         Text(
-            "Simply enter your Instagram username\nand we are good to go.",
+            "Log in with your Instagram account\n(Business or Creator) and we are good to go.",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onBackground,
             textAlign = TextAlign.Center
         )
         Spacer(Modifier.weight(0.5f))
-
-        OutlinedTextField(
-            value = userName.value,
-            onValueChange = { userName.value = it },
-            label = { Text("Instagram Username") },
-            modifier = Modifier.fillMaxWidth()
-        )
 
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
@@ -122,11 +123,19 @@ fun AuthContent(addUserName: (String, String) -> Unit) {
         Spacer(Modifier.weight(1f))
 
         Button(
-            onClick = { addUserName(userName.value, uuid.value) },
+            onClick = { onLogin(uuid.value) },
             modifier = Modifier.fillMaxWidth().height(56.dp),
-            enabled = userName.value.isNotBlank()
         ) {
-            Text("Open Grid")
+            Text("Log in with Instagram")
+        }
+
+        if (waitingForLogin) {
+            Text(
+                "Finish the login in your browser, then come back here.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onBackground,
+                textAlign = TextAlign.Center
+            )
         }
     }
 }

@@ -9,14 +9,12 @@ import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.realtime.Realtime
 import io.github.jan.supabase.storage.Storage
 import io.ktor.client.HttpClient
-import io.ktor.client.plugins.UserAgent
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logger
 import io.ktor.client.plugins.logging.Logging
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
-import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.module
 
 val commonModule = module {
@@ -38,17 +36,15 @@ val commonModule = module {
                     }
                 }
                 level = LogLevel.BODY
-            }
-
-            install(UserAgent) {
-                agent = "Instagram 4.1.1 Android (11/1.5.0; 285; 800x1280; samsung; GT-N7000; GT-N7000; smdkc210; en_US)"
+                // These requests carry the Instagram access token
+                filter { it.url.host != "graph.instagram.com" && "instagram-auth" !in it.url.pathSegments }
             }
         }
     }
 
-    singleOf(::AppPrefs)
+    single { AppPrefs(get()) }
 
-    singleOf(::InstaApi)
+    single { InstaApi(get(), get()) }
     single { SupabaseApi(get(), get(), get()) }
 
     single {
