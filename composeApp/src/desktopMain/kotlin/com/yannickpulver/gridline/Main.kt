@@ -12,7 +12,6 @@ import compose.icons.TablerIcons
 import compose.icons.tablericons.Dots
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -89,9 +88,7 @@ private fun Toolbar(rootComponent: RootComponent, modifier: Modifier = Modifier)
     ) {
         val instance = childStack.active.instance
         if (instance is RootComponent.Child.Feed) {
-            val feedState by instance.component.state.collectAsState()
             Menu(
-                uuid = feedState.uuid,
                 addPlaceholder = { instance.component.addPlaceholder() },
                 reset = { instance.component.reset() },
                 toggleBorders = { instance.component.toggleBorders() },

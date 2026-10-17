@@ -8,6 +8,5 @@ import com.yannickpulver.gridline.ui.feed.model.DisplayItem
 data class FeedViewState(
     val data: List<DisplayItem> = emptyList(),
     val storedImages: List<StoredImage> = emptyList(),
-    val uuid: String? = null,
     val showBorders: Boolean = false,
 )

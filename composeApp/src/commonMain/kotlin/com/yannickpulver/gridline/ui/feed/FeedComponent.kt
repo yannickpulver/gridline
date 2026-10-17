@@ -49,7 +49,6 @@ class FeedComponent(componentContext: ComponentContext, private val onReset: () 
             FeedViewState(
                 data = instaPinned + supabaseFeed + insta,
                 storedImages = storedImages,
-                uuid = prefs.getUuid(),
                 showBorders = showBorders
             )
         }.stateIn(

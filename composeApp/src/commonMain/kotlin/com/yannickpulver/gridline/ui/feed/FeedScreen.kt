@@ -62,19 +62,14 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil3.compose.SubcomposeAsyncImage
 import com.yannickpulver.gridline.ui.feed.model.DisplayItem
-import com.yannickpulver.gridline.ui.snackbar.SnackbarStateHolder
-import kotlinx.coroutines.launch
 
 expect val hasHeader: Boolean
 
@@ -129,7 +124,6 @@ fun FeedScreen(component: FeedComponent, modifier: Modifier = Modifier) {
                         }
                         if (hasHeader) {
                             Menu(
-                                uuid = state.value.uuid,
                                 addPlaceholder = component::addPlaceholder,
                                 reset = component::reset,
                                 toggleBorders = { component.toggleBorders() },
@@ -443,15 +437,12 @@ fun ImageLoader() {
 
 @Composable
 fun Menu(
-    uuid: String?,
     addPlaceholder: () -> Unit,
     reset: () -> Unit,
     toggleBorders: () -> Unit,
     icon: @Composable () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val clipboard = LocalClipboardManager.current
-    val scope = rememberCoroutineScope()
     var expanded by remember { mutableStateOf(false) }
 
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 1.dp) {
@@ -474,19 +465,6 @@ fun Menu(
             containerColor = Color.White,
             shape = RoundedCornerShape(8.dp)
         ) {
-            uuid?.let { uuid ->
-                DropdownMenuItem(
-                    text = { Text("Copy Id") },
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    onClick = {
-                        clipboard.setText(AnnotatedString(uuid))
-                        scope.launch {
-                            SnackbarStateHolder.success("Copied to clipboard!")
-                        }
-                        expanded = false
-                    }
-                )
-            }
             DropdownMenuItem(
                 text = { Text("Add Placeholder") },
                 contentPadding = PaddingValues(horizontal = 16.dp),
