@@ -156,11 +156,22 @@ jobs:
       - name: Build and notarize DMG
         run: bundle exec fastlane macos deploy_dmg
 
-      - name: Upload DMG as artifact
+      # Sparkle in the installed apps reads releases/latest/download/appcast.xml
+      - name: Create Sparkle appcast
+        run: |
+          VERSION=$(cat VERSION)
+          mkdir release
+          cp "composeApp/build/compose/binaries/main-release/dmg/Gridline-$VERSION.dmg" release/
+          echo "$SPARKLE_PRIVATE_KEY" | composeApp/build/sparkle/bin/generate_appcast --ed-key-file - \
+            --download-url-prefix "https://github.com/${{ github.repository }}/releases/download/$VERSION/" release
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+
+      - name: Upload DMG and appcast as artifact
         uses: actions/upload-artifact@v7
         with:
           name: Gridline-dmg
-          path: composeApp/build/compose/binaries/main-release/dmg/*.dmg
+          path: release/
           retention-days: 30
 
   release-mac:
@@ -179,6 +190,6 @@ jobs:
         run: |
           VERSION=$(cat VERSION)
           gh release view "$VERSION" >/dev/null 2>&1 || gh release create "$VERSION" --target "$GITHUB_SHA" --title "$VERSION" --notes "Release $VERSION"
-          gh release upload "$VERSION" "Gridline-$VERSION.dmg" --clobber
+          gh release upload "$VERSION" "Gridline-$VERSION.dmg" appcast.xml --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -24,6 +24,7 @@ import androidx.compose.ui.draganddrop.dragData
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.MenuBar
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
@@ -38,6 +39,7 @@ import com.yannickpulver.gridline.ui.feed.Menu
 import com.yannickpulver.gridline.ui.theme.AppTheme
 import com.yannickpulver.gridline.ui.navigation.RootComponent
 import com.yannickpulver.gridline.ui.snackbar.SnackbarStateHolder
+import com.yannickpulver.gridline.utils.SparkleUpdater
 import com.yannickpulver.gridline.utils.runOnUiThread
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -59,6 +61,8 @@ fun main() {
             )
         }
 
+    SparkleUpdater.start()
+
     application {
         val windowState = rememberWindowState(width = 400.dp, height = 800.dp)
         Window(
@@ -66,6 +70,13 @@ fun main() {
             state = windowState,
             title = "Gridline",
         ) {
+            if (SparkleUpdater.isAvailable) {
+                MenuBar {
+                    Menu("Help") {
+                        Item("Check for Updates…", onClick = SparkleUpdater::checkForUpdates)
+                    }
+                }
+            }
             // Resumes the lifecycle when the window gains focus, pauses it when focus is lost
             LifecycleController(lifecycle, windowState, LocalWindowInfo.current)
             AppTheme(useDarkTheme = false, dynamicColor = false) {

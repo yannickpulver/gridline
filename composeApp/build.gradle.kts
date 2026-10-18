@@ -93,6 +93,7 @@ kotlin {
             implementation(libs.ktor.client.java)
             implementation(libs.kotlinx.coroutines.swing)
             implementation(libs.mpfilepicker)
+            implementation(libs.jna)
         }
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)
@@ -109,6 +110,13 @@ dependencies {
     androidRuntimeClasspath(libs.compose.uiTooling)
 }
 
+val isAppStore = project.property("appStore").toString().toBoolean()
+val signingIdentity = "Yannick Pulver"
+
+// Sparkle updates the DMG from GitHub releases, the App Store build is updated by the store
+val sparkleVersion = "2.10.0"
+val sparkleDir = layout.buildDirectory.dir("sparkle").get().asFile
+
 compose.desktop {
     application {
         mainClass = "com.yannickpulver.gridline.MainKt"
@@ -118,7 +126,6 @@ compose.desktop {
             packageName = "Gridline"
             packageVersion = rootProject.file("VERSION").readText().trim()
             includeAllModules = true
-            val isAppStore = project.property("appStore").toString().toBoolean()
             macOS {
                 bundleID = "com.yannickpulver.gridline"
                 // App Store Connect rejects a build number it has seen before, so every build gets a new one
@@ -129,7 +136,7 @@ compose.desktop {
                 signing {
                     sign.set(true)
                     // This will have to match the name of the certificate issuer -> If you have multiple, remove all but one.
-                    identity.set("Yannick Pulver")
+                    identity.set(signingIdentity)
                 }
 
                 if (isAppStore) {
@@ -139,6 +146,16 @@ compose.desktop {
                     runtimeProvisioningProfile.set(project.file("runtime.provisionprofile"))
                 } else {
                     entitlementsFile.set(project.file("default-entitlements.plist"))
+                    infoPlist {
+                        extraKeysRawXml = """
+                            <key>SUFeedURL</key>
+                            <string>https://github.com/yannickpulver/gridline/releases/latest/download/appcast.xml</string>
+                            <key>SUPublicEDKey</key>
+                            <string>ekVBw5FwFftt8aOjUHK9IW7cn9IrJ0ezoqN1TPQuZQw=</string>
+                            <key>SUEnableAutomaticChecks</key>
+                            <true/>
+                        """.trimIndent()
+                    }
                 }
             }
         }
@@ -147,6 +164,35 @@ compose.desktop {
             isEnabled = false
         }
     }
+}
+
+// Also provides bin/generate_appcast for the release pipeline
+val downloadSparkle by tasks.registering(Exec::class) {
+    inputs.property("version", sparkleVersion)
+    outputs.dir(sparkleDir)
+    commandLine(
+        "sh", "-c", """
+            set -e
+            rm -rf "$sparkleDir" && mkdir -p "$sparkleDir" && cd "$sparkleDir"
+            curl -fsSL -o Sparkle.tar.xz https://github.com/sparkle-project/Sparkle/releases/download/$sparkleVersion/Sparkle-$sparkleVersion.tar.xz
+            echo "c2bf58aa8387266ac179357b1415d6f2635f044da8be41042af32425dae6da0c  Sparkle.tar.xz" | shasum -a 256 -c -
+            tar -xf Sparkle.tar.xz
+        """.trimIndent()
+    )
+}
+
+val bundleSparkle by tasks.registering(Exec::class) {
+    dependsOn(downloadSparkle)
+    val app = layout.buildDirectory.file("compose/binaries/main-release/app/Gridline.app").get().asFile
+    commandLine(
+        "sh", file("bundle-sparkle.sh"), app, sparkleDir.resolve("Sparkle.framework"),
+        "Developer ID Application: $signingIdentity", file("default-entitlements.plist"),
+    )
+}
+
+if (!isAppStore) {
+    tasks.matching { it.name == "createReleaseDistributable" }.configureEach { finalizedBy(bundleSparkle) }
+    tasks.matching { it.name == "packageReleaseDmg" }.configureEach { dependsOn(bundleSparkle) }
 }
 
 buildkonfig {
