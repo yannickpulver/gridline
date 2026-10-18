@@ -26,6 +26,21 @@ platform :android do
           skip_upload_apk: true
         )
     end
+
+    desc "Release a new version to everyone on the Play Store"
+    lane :deploy_prod do
+        build
+        supply(
+          track: "production",
+          aab: "androidApp/build/outputs/bundle/release/androidApp-release.aab",
+          release_status: "completed",
+          rollout: "1.0",
+          skip_upload_metadata: true,
+          skip_upload_images: true,
+          skip_upload_screenshots: true,
+          skip_upload_apk: true
+        )
+    end
 end
 
 platform :ios do
@@ -74,6 +89,28 @@ platform :ios do
       match # if ci is set, will run in readonly mode
       build
       deliver_store
+    end
+
+    desc "Build, upload and submit the iOS app for review, it goes live once approved"
+    lane :deploy_prod do |options|
+      setup_ci if ENV['CI']
+      increment_build
+      match # if ci is set, will run in readonly mode
+      build
+      upload_to_app_store(
+        api_key_path: "fastlane/mac-api-key.json",
+        app_identifier: "com.yannickpulver.gridline",
+        release_notes: { "default" => File.read("release_notes.txt").strip },
+        submit_for_review: true,
+        automatic_release: true,
+        force: true,
+        skip_screenshots: true,
+        precheck_include_in_app_purchases: false,
+        submission_information: {
+          add_id_info_uses_idfa: false,
+          export_compliance_uses_encryption: false
+        }
+      )
     end
 end
 
