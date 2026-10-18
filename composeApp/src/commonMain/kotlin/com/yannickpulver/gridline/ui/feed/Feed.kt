@@ -40,7 +40,9 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import co.touchlab.kermit.Logger
+import coil3.compose.LocalPlatformContext
 import coil3.compose.SubcomposeAsyncImage
+import coil3.request.ImageRequest
 import com.yannickpulver.gridline.ui.feed.model.DisplayItem
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.ReorderableLazyGridState
@@ -150,8 +152,16 @@ private fun InstaGridItem(
                 vertical = if (borders == BorderType.Vertical) 8.dp else 0.dp
             )
     ) {
+        val context = LocalPlatformContext.current
         SubcomposeAsyncImage(
-            model = item.url,
+            // Cached by media ID, so a newly signed url doesn't load the image again
+            model = remember(item.url) {
+                ImageRequest.Builder(context)
+                    .data(item.url)
+                    .memoryCacheKey(item.id)
+                    .diskCacheKey(item.id)
+                    .build()
+            },
             contentDescription = null,
             loading = { ImageLoader() },
             contentScale = ContentScale.Crop,

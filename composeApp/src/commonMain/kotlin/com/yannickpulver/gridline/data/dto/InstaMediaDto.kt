@@ -10,6 +10,7 @@ data class InstaMediaResponseDto(
 
 @Serializable
 data class InstaMediaDto(
+    val id: String,
     @SerialName("media_type") val mediaType: String,
     @SerialName("media_url") val mediaUrl: String? = null,
     @SerialName("thumbnail_url") val thumbnailUrl: String? = null,

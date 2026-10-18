@@ -57,7 +57,7 @@ class InstaApi(
 
     private suspend fun fetchMedia(token: String): List<DisplayItem.InstaItem> {
         val response = client.get("https://graph.instagram.com/me/media") {
-            parameter("fields", "media_type,media_url,thumbnail_url,timestamp")
+            parameter("fields", "id,media_type,media_url,thumbnail_url,timestamp")
             parameter("limit", 12)
             parameter("access_token", token)
         }
@@ -67,6 +67,7 @@ class InstaApi(
             DisplayItem.InstaItem(
                 url = media.imageUrl ?: return@mapNotNull null,
                 publishedAt = media.timestamp?.let(::parseTimestamp),
+                mediaId = media.id,
             )
         }
     }
