@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       android_only:
-        description: "Only upload Android to the Play internal track"
+        description: "Only release Android"
         type: boolean
         default: false
 
@@ -37,8 +37,13 @@ jobs:
           ruby-version: '3.4'
           bundler-cache: true
 
-      - name: Build and upload to TestFlight
-        run: bundle exec fastlane ios deploy
+      - name: Write App Store Connect API key
+        run: echo "$KEY" > fastlane/mac-api-key.json
+        env:
+          KEY: ${{ secrets.APPSTORE_CONNECT_API_JSON }}
+
+      - name: Build, upload and submit to App Store review
+        run: bundle exec fastlane ios deploy_prod
         env:
           MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
@@ -73,8 +78,8 @@ jobs:
           ANDROID_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
           PLAY_CONSOLE_CREDENTIALS_JSON: ${{ secrets.PLAY_CONSOLE_CREDENTIALS_JSON }}
 
-      - name: Build and upload to Play Store
-        run: bundle exec fastlane android deploy
+      - name: Build and release on Play Store
+        run: bundle exec fastlane android deploy_prod
         env:
           ANDROID_SIGNING_KEY: ${{ secrets.ANDROID_SIGNING_KEY }}
           ANDROID_SIGNING_ALIAS: ${{ secrets.ANDROID_SIGNING_ALIAS }}
