@@ -12,10 +12,12 @@ import com.yannickpulver.gridline.data.dto.ImageOrderUpdateDto
 import com.yannickpulver.gridline.data.prefs.AppPrefs
 import com.yannickpulver.gridline.ui.feed.model.DisplayItem
 import com.yannickpulver.gridline.ui.snackbar.SnackbarStateHolder
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -60,7 +62,15 @@ class FeedComponent(componentContext: ComponentContext, private val onReset: () 
             initialValue = FeedViewState(),
         )
 
-    private val ioScope = CoroutineScope(Dispatchers.IO)
+    // A failed request (e.g. offline) shows a message instead of crashing the app or stopping later requests
+    private val ioScope = CoroutineScope(
+        Dispatchers.IO + SupervisorJob() + CoroutineExceptionHandler { _, error ->
+            Logger.e(error) { "Feed request failed" }
+            CoroutineScope(Dispatchers.Default).launch {
+                SnackbarStateHolder.error("Couldn't reach Gridline, please check your connection")
+            }
+        }
+    )
 
     private var refreshJob: Job? = null
 

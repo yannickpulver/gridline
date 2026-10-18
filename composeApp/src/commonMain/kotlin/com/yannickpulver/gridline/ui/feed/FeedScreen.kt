@@ -105,37 +105,25 @@ fun FeedScreen(component: FeedComponent, modifier: Modifier = Modifier) {
                         showBorders = state.value.showBorders,
                         onHide = component::hideImage
                     )
-                    Box(
-                        modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                            .navigationBarsPadding().padding(16.dp)
-                    ) {
-                        PhotoPickerWrapper(component::addImages) { onClick ->
-                            FloatingActionButton(
-                                onClick = onClick,
-                                containerColor = Color.Black,
-                                contentColor = Color.White,
-                                modifier = Modifier.align(Alignment.Center)
-                            ) {
-                                Icon(
-                                    imageVector = TablerIcons.Plus,
-                                    contentDescription = null
-                                )
-                            }
-                        }
-                        if (hasHeader) {
-                            Menu(
-                                addPlaceholder = component::addPlaceholder,
-                                reset = component::reset,
-                                toggleBorders = { component.toggleBorders() },
-                                icon = {
+                    // With a header, adding images sits in it
+                    if (!hasHeader) {
+                        Box(
+                            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                                .navigationBarsPadding().padding(16.dp)
+                        ) {
+                            PhotoPickerWrapper(component::addImages) { onClick ->
+                                FloatingActionButton(
+                                    onClick = onClick,
+                                    containerColor = Color.Black,
+                                    contentColor = Color.White,
+                                    modifier = Modifier.align(Alignment.Center)
+                                ) {
                                     Icon(
-                                        imageVector = TablerIcons.Dots,
-                                        contentDescription = "Menu",
-                                        tint = Color.White
+                                        imageVector = TablerIcons.Plus,
+                                        contentDescription = null
                                     )
-                                },
-                                modifier = Modifier.align(Alignment.CenterEnd)
-                            )
+                                }
+                            }
                         }
                     }
                 }
@@ -174,16 +162,41 @@ private fun TopBar(
     component: FeedComponent
 ) {
     Column {
-        Row(
+        Box(
             modifier = Modifier.fillMaxWidth().statusBarsPadding()
-                .padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            contentAlignment = Alignment.Center
         ) {
+            PhotoPickerWrapper(component::addImages) { onClick ->
+                IconButton(
+                    onClick = onClick,
+                    modifier = Modifier.align(Alignment.CenterStart).size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = TablerIcons.Plus,
+                        contentDescription = "Add images",
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
             Text(
                 "Gridline",
                 color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.SemiBold
+            )
+            Menu(
+                addPlaceholder = component::addPlaceholder,
+                reset = component::reset,
+                toggleBorders = { component.toggleBorders() },
+                icon = {
+                    Icon(
+                        imageVector = TablerIcons.Dots,
+                        contentDescription = "Menu",
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                },
+                containerColor = Color.Transparent,
+                modifier = Modifier.align(Alignment.CenterEnd)
             )
         }
         Divider()
@@ -441,7 +454,8 @@ fun Menu(
     reset: () -> Unit,
     toggleBorders: () -> Unit,
     icon: @Composable () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    containerColor: Color = Color.Black,
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -454,7 +468,7 @@ fun Menu(
                 modifier = Modifier
                     .size(40.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(Color.Black)
+                    .background(containerColor)
             ) {
                 icon()
             }

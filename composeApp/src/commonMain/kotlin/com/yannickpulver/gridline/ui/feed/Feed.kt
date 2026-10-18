@@ -102,7 +102,7 @@ fun Feed(
         if (state.data.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    "You can add images with the button down below.",
+                    "You can add images with the + button.",
                     textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.labelSmall
                 )
