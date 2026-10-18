@@ -9,21 +9,31 @@ import com.russhwolf.settings.serialization.removeValue
 import com.yannickpulver.gridline.ui.feed.model.DisplayItem
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.builtins.ListSerializer
-import kotlin.uuid.Uuid
+import kotlin.time.Clock
+import kotlin.time.Instant
 
 @OptIn(ExperimentalSerializationApi::class, ExperimentalSettingsApi::class)
 
-class AppPrefs(private val settings: Settings) {
+class AppPrefs(private val settings: Settings, private val clock: Clock = Clock.System) {
     private val InstaItemListSerializer = ListSerializer(DisplayItem.InstaItem.serializer())
 
-    fun setUserName(userName: String, uuid: String? = null) {
-        settings.putString(KEY_USERNAME, userName)
-        settings.putString(KEY_UUID, uuid ?: Uuid.random().toString())
+    /** The Gridline ID belongs to the Instagram account, so every device shows the same grid. */
+    fun setInstaLogin(token: String, gridlineId: String) {
+        setInstaToken(token)
+        settings.putString(KEY_UUID, gridlineId)
     }
 
-    fun hasUserInfo() = getUserName() != null
+    fun hasUserInfo() = getInstaToken() != null
 
-    fun getUserName() = settings.getStringOrNull(KEY_USERNAME)
+    fun getInstaToken() = settings.getStringOrNull(KEY_INSTA_TOKEN)
+
+    fun setInstaToken(token: String) {
+        settings.putString(KEY_INSTA_TOKEN, token)
+        settings.putLong(KEY_INSTA_TOKEN_REFRESHED_AT, clock.now().epochSeconds)
+    }
+
+    fun getInstaTokenRefreshedAt(): Instant =
+        Instant.fromEpochSeconds(settings.getLong(KEY_INSTA_TOKEN_REFRESHED_AT, 0))
 
     fun getFeed(): List<DisplayItem.InstaItem> {
         return if (settings.containsValue(InstaItemListSerializer, KEY_FEED)) {
@@ -49,12 +59,17 @@ class AppPrefs(private val settings: Settings) {
 
     fun clearUserInfo() {
         settings.remove(KEY_USERNAME)
-        settings.remove(KEY_UUID)
+        settings.remove(KEY_INSTA_TOKEN)
+        settings.remove(KEY_INSTA_TOKEN_REFRESHED_AT)
+        // The Gridline ID stays: the next login links it to the account if the account has none yet
         settings.removeValue(InstaItemListSerializer, KEY_FEED)
     }
 
     companion object {
+        // Username from the old public Instagram API, only kept to clean it up
         const val KEY_USERNAME = "userName"
+        const val KEY_INSTA_TOKEN = "key-instaToken"
+        const val KEY_INSTA_TOKEN_REFRESHED_AT = "key-instaTokenRefreshedAt"
         const val KEY_UUID = "key-uuid"
         const val KEY_FEED = "key-feed"
         const val KEY_SHOWBORDERS = "key-showBorders"

@@ -62,19 +62,14 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil3.compose.SubcomposeAsyncImage
 import com.yannickpulver.gridline.ui.feed.model.DisplayItem
-import com.yannickpulver.gridline.ui.snackbar.SnackbarStateHolder
-import kotlinx.coroutines.launch
 
 expect val hasHeader: Boolean
 
@@ -110,38 +105,25 @@ fun FeedScreen(component: FeedComponent, modifier: Modifier = Modifier) {
                         showBorders = state.value.showBorders,
                         onHide = component::hideImage
                     )
-                    Box(
-                        modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                            .navigationBarsPadding().padding(16.dp)
-                    ) {
-                        PhotoPickerWrapper(component::addImages) { onClick ->
-                            FloatingActionButton(
-                                onClick = onClick,
-                                containerColor = Color.Black,
-                                contentColor = Color.White,
-                                modifier = Modifier.align(Alignment.Center)
-                            ) {
-                                Icon(
-                                    imageVector = TablerIcons.Plus,
-                                    contentDescription = null
-                                )
-                            }
-                        }
-                        if (hasHeader) {
-                            Menu(
-                                uuid = state.value.uuid,
-                                addPlaceholder = component::addPlaceholder,
-                                reset = component::reset,
-                                toggleBorders = { component.toggleBorders() },
-                                icon = {
+                    // With a header, adding images sits in it
+                    if (!hasHeader) {
+                        Box(
+                            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                                .navigationBarsPadding().padding(16.dp)
+                        ) {
+                            PhotoPickerWrapper(component::addImages) { onClick ->
+                                FloatingActionButton(
+                                    onClick = onClick,
+                                    containerColor = Color.Black,
+                                    contentColor = Color.White,
+                                    modifier = Modifier.align(Alignment.Center)
+                                ) {
                                     Icon(
-                                        imageVector = TablerIcons.Dots,
-                                        contentDescription = "Menu",
-                                        tint = Color.White
+                                        imageVector = TablerIcons.Plus,
+                                        contentDescription = null
                                     )
-                                },
-                                modifier = Modifier.align(Alignment.CenterEnd)
-                            )
+                                }
+                            }
                         }
                     }
                 }
@@ -180,16 +162,41 @@ private fun TopBar(
     component: FeedComponent
 ) {
     Column {
-        Row(
+        Box(
             modifier = Modifier.fillMaxWidth().statusBarsPadding()
-                .padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            contentAlignment = Alignment.Center
         ) {
+            PhotoPickerWrapper(component::addImages) { onClick ->
+                IconButton(
+                    onClick = onClick,
+                    modifier = Modifier.align(Alignment.CenterStart).size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = TablerIcons.Plus,
+                        contentDescription = "Add images",
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
             Text(
                 "Gridline",
                 color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.SemiBold
+            )
+            Menu(
+                addPlaceholder = component::addPlaceholder,
+                reset = component::reset,
+                toggleBorders = { component.toggleBorders() },
+                icon = {
+                    Icon(
+                        imageVector = TablerIcons.Dots,
+                        contentDescription = "Menu",
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                },
+                containerColor = Color.Transparent,
+                modifier = Modifier.align(Alignment.CenterEnd)
             )
         }
         Divider()
@@ -443,15 +450,13 @@ fun ImageLoader() {
 
 @Composable
 fun Menu(
-    uuid: String?,
     addPlaceholder: () -> Unit,
     reset: () -> Unit,
     toggleBorders: () -> Unit,
     icon: @Composable () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    containerColor: Color = Color.Black,
 ) {
-    val clipboard = LocalClipboardManager.current
-    val scope = rememberCoroutineScope()
     var expanded by remember { mutableStateOf(false) }
 
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 1.dp) {
@@ -463,7 +468,7 @@ fun Menu(
                 modifier = Modifier
                     .size(40.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(Color.Black)
+                    .background(containerColor)
             ) {
                 icon()
             }
@@ -474,19 +479,6 @@ fun Menu(
             containerColor = Color.White,
             shape = RoundedCornerShape(8.dp)
         ) {
-            uuid?.let { uuid ->
-                DropdownMenuItem(
-                    text = { Text("Copy Id") },
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    onClick = {
-                        clipboard.setText(AnnotatedString(uuid))
-                        scope.launch {
-                            SnackbarStateHolder.success("Copied to clipboard!")
-                        }
-                        expanded = false
-                    }
-                )
-            }
             DropdownMenuItem(
                 text = { Text("Add Placeholder") },
                 contentPadding = PaddingValues(horizontal = 16.dp),

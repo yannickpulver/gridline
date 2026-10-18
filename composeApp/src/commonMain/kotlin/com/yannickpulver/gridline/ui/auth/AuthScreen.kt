@@ -23,16 +23,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import gridline.composeapp.generated.resources.Res
@@ -43,15 +42,18 @@ import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun AuthScreen(component: AuthComponent) {
-    AuthContent(addUserName = component::setUsername)
+    val uriHandler = LocalUriHandler.current
+    val waitingForLogin by component.waitingForLogin.collectAsState()
+
+    AuthContent(
+        waitingForLogin = waitingForLogin,
+        onLogin = { uriHandler.openUri(component.startLogin()) },
+    )
 }
 
 @Composable
 @OptIn(ExperimentalResourceApi::class)
-fun AuthContent(addUserName: (String, String) -> Unit) {
-    val userName = remember { mutableStateOf("") }
-    val uuid = remember { mutableStateOf("") }
-
+fun AuthContent(waitingForLogin: Boolean, onLogin: () -> Unit) {
     Column(
         Modifier.fillMaxSize().systemBarsPadding().verticalScroll(rememberScrollState()).imePadding().padding(vertical = 24.dp, horizontal = 48.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -92,41 +94,29 @@ fun AuthContent(addUserName: (String, String) -> Unit) {
             color = MaterialTheme.colorScheme.onSurface
         )
         Text(
-            "Simply enter your Instagram username\nand we are good to go.",
+            "Log in with your Instagram account\n(Business or Creator) and we are good to go.",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onBackground,
             textAlign = TextAlign.Center
         )
         Spacer(Modifier.weight(0.5f))
 
-        OutlinedTextField(
-            value = userName.value,
-            onValueChange = { userName.value = it },
-            label = { Text("Instagram Username") },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(
-                "If you already have a Gridline ID, enter it here. If you're starting fresh, you can skip this.",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            OutlinedTextField(
-                value = uuid.value,
-                onValueChange = { uuid.value = it },
-                label = { Text("Optional: Gridline ID") },
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
         Spacer(Modifier.weight(1f))
 
         Button(
-            onClick = { addUserName(userName.value, uuid.value) },
+            onClick = onLogin,
             modifier = Modifier.fillMaxWidth().height(56.dp),
-            enabled = userName.value.isNotBlank()
         ) {
-            Text("Open Grid")
+            Text("Log in with Instagram")
+        }
+
+        if (waitingForLogin) {
+            Text(
+                "Finish the login in your browser, then come back here.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onBackground,
+                textAlign = TextAlign.Center
+            )
         }
     }
 }

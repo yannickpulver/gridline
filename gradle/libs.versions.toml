@@ -9,6 +9,7 @@ buildKonfig = "0.23.0"
 coil = "3.6.3"
 composeMultiplatform = "1.12.2"
 decompose = "3.5.0"
+jna = "5.19.1"
 kermit = "2.2.0"
 koin = "4.2.2"
 kotlin = "2.4.21"
@@ -39,6 +40,7 @@ compose-uiTooling = { module = "org.jetbrains.compose.ui:ui-tooling", version.re
 compose-uiToolingPreview = { module = "org.jetbrains.compose.ui:ui-tooling-preview", version.ref = "composeMultiplatform" }
 decompose = { module = "com.arkivanov.decompose:decompose", version.ref = "decompose" }
 decompose-extensions-compose = { module = "com.arkivanov.decompose:extensions-compose", version.ref = "decompose" }
+jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
 kermit = { module = "co.touchlab:kermit", version.ref = "kermit" }
 koin-bom = { module = "io.insert-koin:koin-bom", version.ref = "koin" }
 koin-android = { module = "io.insert-koin:koin-android" }

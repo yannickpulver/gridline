@@ -7,6 +7,11 @@ on:
     branches: [ "main" ]
     paths: [ "VERSION" ]
   workflow_dispatch:
+    inputs:
+      android_only:
+        description: "Only upload Android to the Play internal track"
+        type: boolean
+        default: false
 
 concurrency:
   group: release
@@ -18,6 +23,7 @@ env:
 
 jobs:
   deploy-ios:
+    if: ${{ !inputs.android_only }}
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v7
@@ -74,6 +80,7 @@ jobs:
           ANDROID_SIGNING_ALIAS: ${{ secrets.ANDROID_SIGNING_ALIAS }}
 
   deploy-mac-store:
+    if: ${{ !inputs.android_only }}
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v7
@@ -121,6 +128,7 @@ jobs:
           for f in composeApp/build/compose/logs/**/*.txt; do echo "=== $f ==="; cat "$f"; done
 
   build-mac:
+    if: ${{ !inputs.android_only }}
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v7
@@ -148,15 +156,27 @@ jobs:
       - name: Build and notarize DMG
         run: bundle exec fastlane macos deploy_dmg
 
-      - name: Upload DMG as artifact
+      # Sparkle in the installed apps reads releases/latest/download/appcast.xml
+      - name: Create Sparkle appcast
+        run: |
+          VERSION=$(cat VERSION)
+          mkdir release
+          cp "composeApp/build/compose/binaries/main-release/dmg/Gridline-$VERSION.dmg" release/
+          echo "$SPARKLE_PRIVATE_KEY" | composeApp/build/sparkle/bin/generate_appcast --ed-key-file - \
+            --download-url-prefix "https://github.com/${{ github.repository }}/releases/download/$VERSION/" release
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+
+      - name: Upload DMG and appcast as artifact
         uses: actions/upload-artifact@v7
         with:
           name: Gridline-dmg
-          path: composeApp/build/compose/binaries/main-release/dmg/*.dmg
+          path: release/
           retention-days: 30
 
   release-mac:
     needs: [ build-mac, deploy-ios, deploy-android, deploy-mac-store ]
+    if: ${{ !inputs.android_only }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -170,6 +190,6 @@ jobs:
         run: |
           VERSION=$(cat VERSION)
           gh release view "$VERSION" >/dev/null 2>&1 || gh release create "$VERSION" --target "$GITHUB_SHA" --title "$VERSION" --notes "Release $VERSION"
-          gh release upload "$VERSION" "Gridline-$VERSION.dmg" --clobber
+          gh release upload "$VERSION" "Gridline-$VERSION.dmg" appcast.xml --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
