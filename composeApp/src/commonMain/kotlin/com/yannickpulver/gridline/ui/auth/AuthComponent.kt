@@ -3,6 +3,7 @@ package com.yannickpulver.gridline.ui.auth
 import com.arkivanov.decompose.ComponentContext
 import com.arkivanov.essenty.lifecycle.doOnDestroy
 import com.yannickpulver.gridline.data.api.InstaApi
+import com.yannickpulver.gridline.data.dto.InstaLoginDto
 import com.yannickpulver.gridline.data.prefs.AppPrefs
 import com.yannickpulver.gridline.ui.snackbar.SnackbarStateHolder
 import kotlinx.coroutines.CoroutineScope
@@ -45,21 +46,21 @@ class AuthComponent(
         loginJob?.cancel()
         loginJob = scope.launch {
             _waitingForLogin.value = true
-            val token = withTimeoutOrNull(10.minutes) {
-                var token: String? = null
-                while (token == null) {
+            val login = withTimeoutOrNull(10.minutes) {
+                var login: InstaLoginDto? = null
+                while (login == null) {
                     delay(2.seconds)
-                    token = runCatching { instaApi.fetchLoginToken(state) }.getOrNull()
+                    login = runCatching { instaApi.fetchLogin(state, prefs.getUuid()) }.getOrNull()
                 }
-                token
+                login
             }
             _waitingForLogin.value = false
 
-            if (token == null) {
+            if (login == null) {
                 SnackbarStateHolder.error("Instagram login timed out")
                 return@launch
             }
-            prefs.setInstaLogin(token)
+            prefs.setInstaLogin(login.accessToken, login.gridlineId)
             navigateToFeed()
         }
         return instaApi.loginUrl(state)

@@ -19,6 +19,12 @@ data class InstaMediaDto(
 }
 
 @Serializable
+data class InstaLoginDto(
+    @SerialName("access_token") val accessToken: String,
+    @SerialName("gridline_id") val gridlineId: String,
+)
+
+@Serializable
 data class InstaTokenDto(
     @SerialName("access_token") val accessToken: String,
 )

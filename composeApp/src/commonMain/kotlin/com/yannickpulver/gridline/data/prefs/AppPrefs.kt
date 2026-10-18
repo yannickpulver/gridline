@@ -11,17 +11,16 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.builtins.ListSerializer
 import kotlin.time.Clock
 import kotlin.time.Instant
-import kotlin.uuid.Uuid
 
 @OptIn(ExperimentalSerializationApi::class, ExperimentalSettingsApi::class)
 
 class AppPrefs(private val settings: Settings, private val clock: Clock = Clock.System) {
     private val InstaItemListSerializer = ListSerializer(DisplayItem.InstaItem.serializer())
 
-    /** Keeps an existing Gridline ID, so grids from before the Instagram Login stay. */
-    fun setInstaLogin(token: String) {
+    /** The Gridline ID belongs to the Instagram account, so every device shows the same grid. */
+    fun setInstaLogin(token: String, gridlineId: String) {
         setInstaToken(token)
-        settings.putString(KEY_UUID, getUuid() ?: Uuid.random().toString())
+        settings.putString(KEY_UUID, gridlineId)
     }
 
     fun hasUserInfo() = getInstaToken() != null
@@ -62,7 +61,7 @@ class AppPrefs(private val settings: Settings, private val clock: Clock = Clock.
         settings.remove(KEY_USERNAME)
         settings.remove(KEY_INSTA_TOKEN)
         settings.remove(KEY_INSTA_TOKEN_REFRESHED_AT)
-        settings.remove(KEY_UUID)
+        // The Gridline ID stays: the next login links it to the account if the account has none yet
         settings.removeValue(InstaItemListSerializer, KEY_FEED)
     }
 
