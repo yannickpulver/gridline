@@ -26,6 +26,16 @@ data class InstaLoginDto(
 )
 
 @Serializable
+data class InstaErrorResponseDto(
+    val error: InstaErrorDto,
+)
+
+@Serializable
+data class InstaErrorDto(
+    val code: Int,
+)
+
+@Serializable
 data class InstaTokenDto(
     @SerialName("access_token") val accessToken: String,
 )

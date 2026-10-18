@@ -4,6 +4,7 @@ import co.touchlab.kermit.Logger
 import com.arkivanov.decompose.ComponentContext
 import com.arkivanov.essenty.lifecycle.doOnResume
 import com.yannickpulver.gridline.data.api.InstaApi
+import com.yannickpulver.gridline.data.api.InstaLoginExpiredException
 import com.yannickpulver.gridline.data.api.SupabaseApi
 import com.yannickpulver.gridline.data.dto.ImageDto
 import com.yannickpulver.gridline.data.observeSharedImages
@@ -18,11 +19,13 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -85,16 +88,23 @@ class FeedComponent(componentContext: ComponentContext, private val onReset: () 
                 _supaFeed.update { supabaseApi.fetchImages().asItems() }
             }
 
-            instaApi.getFeed().collect { posts ->
-                if (posts.isEmpty()) return@collect
-                val latestIndex = posts.withIndex().maxBy { it.value.publishedAt ?: 0 }.index
+            instaApi.getFeed()
+                .catch { if (it is InstaLoginExpiredException) logOutExpired() else throw it }
+                .collect { posts ->
+                    if (posts.isEmpty()) return@collect
+                    val latestIndex = posts.withIndex().maxBy { it.value.publishedAt ?: 0 }.index
 
-                posts.withIndex().partition { it.index < latestIndex }.let { (pinned, posts) ->
-                    _instaPinnedFeed.update { pinned.map { it.value } }
-                    _instaFeed.update { posts.map { it.value } }
+                    posts.withIndex().partition { it.index < latestIndex }.let { (pinned, posts) ->
+                        _instaPinnedFeed.update { pinned.map { it.value } }
+                        _instaFeed.update { posts.map { it.value } }
+                    }
                 }
-            }
         }
+    }
+
+    private suspend fun logOutExpired() = withContext(Dispatchers.Main) {
+        SnackbarStateHolder.error("Instagram login expired, please log in again")
+        reset()
     }
 
     fun fetchPossibleImages() {

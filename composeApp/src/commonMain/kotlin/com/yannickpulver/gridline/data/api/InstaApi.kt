@@ -1,6 +1,7 @@
 package com.yannickpulver.gridline.data.api
 
 import com.yannickpulver.gridline.BuildKonfig
+import com.yannickpulver.gridline.data.dto.InstaErrorResponseDto
 import com.yannickpulver.gridline.data.dto.InstaLoginDto
 import com.yannickpulver.gridline.data.dto.InstaMediaResponseDto
 import com.yannickpulver.gridline.data.dto.InstaTokenDto
@@ -48,9 +49,11 @@ class InstaApi(
         emit(appPrefs.getFeed())
 
         // Keep the cached feed when Instagram fails, so the grid never goes empty
-        val result = runCatching { fetchMedia(refreshedToken(token)) }
-            .onFailure { SnackbarStateHolder.error("Couldn't fetch Instagram feed") }
-            .getOrNull() ?: return@flow
+        val result = runCatching { fetchMedia(refreshedToken(token)) }.getOrElse {
+            if (it is InstaLoginExpiredException) throw it
+            SnackbarStateHolder.error("Couldn't fetch Instagram feed")
+            return@flow
+        }
         emit(result)
         appPrefs.setFeed(result)
     }
@@ -61,7 +64,11 @@ class InstaApi(
             parameter("limit", 12)
             parameter("access_token", token)
         }
-        check(response.status.isSuccess()) { "Instagram responded ${response.status}" }
+        if (!response.status.isSuccess()) {
+            val code = runCatching { response.body<InstaErrorResponseDto>().error.code }.getOrNull()
+            if (code == INVALID_TOKEN) throw InstaLoginExpiredException()
+            error("Instagram responded ${response.status}")
+        }
 
         return response.body<InstaMediaResponseDto>().data.mapNotNull { media ->
             DisplayItem.InstaItem(
@@ -92,4 +99,12 @@ class InstaApi(
     private fun parseTimestamp(value: String): Long? = runCatching {
         Instant.parse(value.replace(Regex("([+-]\\d{2})(\\d{2})$"), "$1:$2")).epochSeconds
     }.getOrNull()
+
+    private companion object {
+        // Expired or revoked, e.g. after a password change or removing the app in Instagram
+        const val INVALID_TOKEN = 190
+    }
 }
+
+/** The Instagram token can't be used anymore, the user has to log in again. */
+class InstaLoginExpiredException : Exception("Instagram login expired")
