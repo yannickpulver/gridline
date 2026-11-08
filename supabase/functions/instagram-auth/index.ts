@@ -4,6 +4,8 @@
 // 2. Instagram → /instagram-auth/callback?code&state → long-lived token stored under state
 // 3. App polls  /instagram-auth/token?state=<uuid>&gridline_id=<uuid or empty>
 //    → gets the token and the account's Gridline ID once, row is deleted
+// 4. App signs in to Supabase anonymously and calls POST /instagram-auth/link with that session and
+//    its Instagram token → its sign-in gets the account's Gridline ID, which the access rules check
 //
 // The app secret only lives here; the app itself never needs it.
 
@@ -23,6 +25,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 Deno.serve(async (req) => {
   const url = new URL(req.url);
+  if (url.pathname.endsWith("/link")) return link(req);
+
   const state = url.searchParams.get("state") ?? "";
   if (!UUID.test(state)) return text("Invalid state", 400);
 
@@ -144,6 +148,33 @@ async function storedGridlineId(instagramUserId: string): Promise<string | null>
     .eq("instagram_user_id", instagramUserId)
     .maybeSingle();
   return data?.gridline_id ?? null;
+}
+
+// Proves the device belongs to the Instagram account: its token must work and the account must have
+// a Gridline ID. The device's anonymous sign-in then may read and change that grid.
+async function link(req: Request) {
+  if (req.method !== "POST") return text("Method not allowed", 405);
+  const jwt = req.headers.get("Authorization")?.replace(/^Bearer /, "") ?? "";
+  const { data: auth } = await db.auth.getUser(jwt);
+  if (!auth.user) return text("Not signed in", 401);
+
+  const { access_token: accessToken } = await req.json().catch(() => ({}));
+  if (typeof accessToken !== "string") return text("Missing access_token", 400);
+  const me = await fetch(
+    `https://graph.instagram.com/me?fields=user_id&access_token=${encodeURIComponent(accessToken)}`,
+  ).then((r) => r.json());
+  if (!me.user_id) return text("Instagram token not valid", 401);
+
+  const gridlineId = await storedGridlineId(String(me.user_id));
+  if (!gridlineId) return text("Account has no Gridline ID yet", 404);
+
+  const { error } = await db.from("gridline_devices")
+    .upsert({ auth_user_id: auth.user.id, gridline_id: gridlineId });
+  if (error) {
+    console.error("Linking device failed", error);
+    return text("Linking failed", 500);
+  }
+  return Response.json({ gridline_id: gridlineId });
 }
 
 function text(body: string, status = 200) {

@@ -17,5 +17,6 @@ gridline remove 17029                       # takes it off the grid (the file st
 - Several images: pass them in the order they should appear from bottom to top; the last one ends up at the top.
 - Any format `sips` reads works (JPEG, PNG, HEIC, …).
 - Run `gridline list` afterwards and tell the user the new `#id`.
-- The Gridline ID comes from the Mac app's settings. If it says none was found, the user isn't logged in on the Mac; ask for the ID and pass `--id`.
+- Like the app, it signs in to Supabase and links that sign-in to the grid with the Instagram token from the Mac app's settings (session in `~/.config/gridline/session.json`). "Not signed in, using the public key" is fine as long as the backend doesn't require sign-in yet.
+- If it says no Gridline ID was found, the user isn't logged in on the Mac; ask them to log in to the Mac app.
 - Reordering, placeholders and pinned posts happen in the app.

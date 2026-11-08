@@ -1,9 +1,12 @@
 package com.yannickpulver.gridline.di
 
 import com.yannickpulver.gridline.BuildKonfig
+import com.yannickpulver.gridline.data.api.GridAccess
 import com.yannickpulver.gridline.data.api.InstaApi
 import com.yannickpulver.gridline.data.api.SupabaseApi
 import com.yannickpulver.gridline.data.prefs.AppPrefs
+import com.yannickpulver.gridline.data.prefs.GridlineSessionManager
+import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.realtime.Realtime
@@ -46,12 +49,16 @@ val commonModule = module {
 
     single { InstaApi(get(), get()) }
     single { SupabaseApi(get(), get(), get()) }
+    single { GridAccess(get(), get(), get()) }
 
     single {
         createSupabaseClient(
             supabaseUrl = BuildKonfig.SUPABASE_URL,
             supabaseKey = BuildKonfig.SUPABASE_KEY
         ) {
+            install(Auth) {
+                sessionManager = GridlineSessionManager(get())
+            }
             install(Storage)
             install(Postgrest)
             install(Realtime)

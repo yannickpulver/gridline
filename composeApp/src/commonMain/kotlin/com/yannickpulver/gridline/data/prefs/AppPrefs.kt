@@ -65,12 +65,21 @@ class AppPrefs(private val settings: Settings, private val clock: Clock = Clock.
 
     fun getUuid() = settings.getStringOrNull(KEY_UUID)
 
+    /** The Supabase sign-in that instagram-auth linked to this account's grid. */
+    fun getLinkedSignIn() = settings.getStringOrNull(KEY_LINKED_SIGN_IN)
+
+    fun setLinkedSignIn(authUserId: String, gridlineId: String) {
+        settings.putString(KEY_LINKED_SIGN_IN, authUserId)
+        settings.putString(KEY_UUID, gridlineId)
+    }
+
     fun showBorders() = settings.getBoolean(KEY_SHOWBORDERS, false)
 
     fun clearUserInfo() {
         settings.remove(KEY_USERNAME)
         settings.remove(KEY_INSTA_TOKEN)
         settings.remove(KEY_INSTA_TOKEN_REFRESHED_AT)
+        settings.remove(KEY_LINKED_SIGN_IN)
         // The Gridline ID stays: the next login links it to the account if the account has none yet
         settings.removeValue(InstaItemListSerializer, KEY_FEED)
         settings.removeValue(PinnedPostListSerializer, KEY_PINNED_POSTS)
@@ -85,6 +94,7 @@ class AppPrefs(private val settings: Settings, private val clock: Clock = Clock.
         const val KEY_FEED = "key-feed"
         const val KEY_SHOWBORDERS = "key-showBorders"
         const val KEY_PINNED_POSTS = "key-pinnedPosts"
+        const val KEY_LINKED_SIGN_IN = "key-linkedSignIn"
     }
 }
 

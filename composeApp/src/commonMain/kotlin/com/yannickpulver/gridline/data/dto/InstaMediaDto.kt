@@ -33,6 +33,16 @@ data class InstaLoginDto(
 )
 
 @Serializable
+data class LinkRequestDto(
+    @SerialName("access_token") val accessToken: String,
+)
+
+@Serializable
+data class LinkResponseDto(
+    @SerialName("gridline_id") val gridlineId: String,
+)
+
+@Serializable
 data class InstaErrorResponseDto(
     val error: InstaErrorDto,
 )

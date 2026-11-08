@@ -3,6 +3,7 @@ package com.yannickpulver.gridline.ui.feed
 import co.touchlab.kermit.Logger
 import com.arkivanov.decompose.ComponentContext
 import com.arkivanov.essenty.lifecycle.doOnResume
+import com.yannickpulver.gridline.data.api.GridAccess
 import com.yannickpulver.gridline.data.api.InstaApi
 import com.yannickpulver.gridline.data.api.InstaLoginExpiredException
 import com.yannickpulver.gridline.data.api.SupabaseApi
@@ -36,6 +37,7 @@ class FeedComponent(componentContext: ComponentContext, private val onReset: () 
     ComponentContext by componentContext {
     private val instaApi: InstaApi by inject()
     private val supabaseApi: SupabaseApi by inject()
+    private val gridAccess: GridAccess by inject()
     private val prefs: AppPrefs by inject()
 
     private val _showBorders = MutableStateFlow(prefs.showBorders())
@@ -80,6 +82,7 @@ class FeedComponent(componentContext: ComponentContext, private val onReset: () 
 
     init {
         ioScope.launch {
+            gridAccess.ensureLinked()
             supabaseApi.observeImages(ioScope).map { it.asItems() }.collect { images ->
                 _supaFeed.update { images }
             }
@@ -99,6 +102,7 @@ class FeedComponent(componentContext: ComponentContext, private val onReset: () 
         refreshJob?.cancel()
         refreshJob = ioScope.launch {
             launch {
+                gridAccess.ensureLinked()
                 _supaFeed.update { supabaseApi.fetchImages().asItems() }
             }
 
