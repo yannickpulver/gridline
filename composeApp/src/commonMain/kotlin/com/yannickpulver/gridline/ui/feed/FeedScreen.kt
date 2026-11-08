@@ -79,6 +79,14 @@ fun FeedScreen(component: FeedComponent, modifier: Modifier = Modifier) {
 
     val selectedItem = remember { mutableStateOf<DisplayItem.SupabaseItem?>(null) }
 
+    component.pinnedLinks.collectAsState().value?.let { links ->
+        PinnedPostsDialog(
+            links = links,
+            onSave = component::savePinnedPosts,
+            onDismiss = component::dismissPinnedPosts
+        )
+    }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
@@ -186,6 +194,7 @@ private fun TopBar(
             )
             Menu(
                 addPlaceholder = component::addPlaceholder,
+                editPinnedPosts = component::editPinnedPosts,
                 reset = component::reset,
                 toggleBorders = { component.toggleBorders() },
                 icon = {
@@ -451,6 +460,7 @@ fun ImageLoader() {
 @Composable
 fun Menu(
     addPlaceholder: () -> Unit,
+    editPinnedPosts: () -> Unit,
     reset: () -> Unit,
     toggleBorders: () -> Unit,
     icon: @Composable () -> Unit,
@@ -484,6 +494,14 @@ fun Menu(
                 contentPadding = PaddingValues(horizontal = 16.dp),
                 onClick = {
                     addPlaceholder()
+                    expanded = false
+                }
+            )
+            DropdownMenuItem(
+                text = { Text("Pinned Posts") },
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                onClick = {
+                    editPinnedPosts()
                     expanded = false
                 }
             )

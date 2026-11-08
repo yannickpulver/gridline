@@ -101,6 +101,7 @@ private fun Toolbar(rootComponent: RootComponent, modifier: Modifier = Modifier)
         if (instance is RootComponent.Child.Feed) {
             Menu(
                 addPlaceholder = { instance.component.addPlaceholder() },
+                editPinnedPosts = { instance.component.editPinnedPosts() },
                 reset = { instance.component.reset() },
                 toggleBorders = { instance.component.toggleBorders() },
                 icon = {

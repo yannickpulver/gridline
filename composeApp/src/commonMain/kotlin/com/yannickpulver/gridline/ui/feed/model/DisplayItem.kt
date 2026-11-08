@@ -7,7 +7,12 @@ sealed class DisplayItem(val id: String) {
 
     /** Instagram signs [url] anew on every fetch, [mediaId] stays the same (falls back to the url for older caches). */
     @Serializable
-    data class InstaItem(val url: String, val publishedAt: Long?, val mediaId: String = url) : DisplayItem(mediaId)
+    data class InstaItem(
+        val url: String,
+        val publishedAt: Long?,
+        val mediaId: String = url,
+        val pinned: Boolean = false,
+    ) : DisplayItem(mediaId)
 
     @Serializable
     data class SupabaseItem(val url: String?, val supaId: Int, val order: Long) : DisplayItem(supaId.toString()) {

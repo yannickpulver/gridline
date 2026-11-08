@@ -3,3 +3,7 @@ project_id = "gridline"
 # Instagram redirects to the callback without a Supabase JWT
 [functions.instagram-auth]
 verify_jwt = false
+
+# The apps sign in anonymously, instagram-auth links the sign-in to the account's grid
+[auth]
+enable_anonymous_sign_ins = true

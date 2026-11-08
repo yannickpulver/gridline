@@ -69,6 +69,7 @@ kotlin {
             implementation(libs.kotlinx.serialization.json)
 
             implementation(project.dependencies.platform(libs.supabase.bom))
+            implementation(libs.supabase.auth)
             implementation(libs.supabase.postgrest)
             implementation(libs.supabase.storage)
             implementation(libs.supabase.realtime)
@@ -87,6 +88,12 @@ kotlin {
             implementation(libs.coil)
             implementation(libs.coil.compose)
             implementation(libs.coil.network)
+        }
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+            implementation(libs.kotlinx.coroutines.test)
+            implementation(libs.ktor.client.mock)
+            implementation(libs.multiplatform.settings.test)
         }
         desktopMain.dependencies {
             implementation(compose.desktop.currentOs)

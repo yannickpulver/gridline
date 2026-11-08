@@ -1,0 +1,223 @@
+#!/usr/bin/env python3
+"""Adds images to the Gridline grid from the command line, like the + button in the app.
+
+  gridline add photo.jpg other.png https://example.com/image.jpg
+  gridline list
+  gridline remove 123
+
+Open apps update right away. Needs supabaseUrl/supabaseKey in the repo's local.properties
+(or SUPABASE_URL/SUPABASE_KEY). Like the app, it signs in to Supabase and links that sign-in to
+the grid with the Instagram token from the Mac app's settings; the session is kept in
+~/.config/gridline/session.json.
+"""
+
+import argparse
+import json
+import os
+import plistlib
+import subprocess
+import sys
+import tempfile
+import time
+import urllib.request
+import uuid
+from pathlib import Path
+
+BUCKET = "images"
+TABLE = "images"
+MAX_SIZE = 500  # The app stores images at this size too
+RANK_GAP = 1 << 50
+LONG_MAX = (1 << 63) - 1
+REPO = Path(__file__).resolve().parent.parent
+SESSION_FILE = Path.home() / ".config/gridline/session.json"
+
+
+def local_properties():
+    path = REPO / "local.properties"
+    if not path.exists():
+        return {}
+    pairs = (line.split("=", 1) for line in path.read_text().splitlines() if "=" in line and not line.startswith("#"))
+    return {key.strip(): value.strip() for key, value in pairs}
+
+
+def mac_app_setting(key):
+    prefs = Path.home() / "Library/Preferences/com.apple.java.util.prefs.plist"
+    try:
+        root = plistlib.loads(prefs.read_bytes())
+        return root.get("/", root).get(key)
+    except OSError:
+        return None
+
+
+class Supabase:
+    def __init__(self, url, key):
+        self.url = url.rstrip("/")
+        self.key = key
+        self.token = key  # The session's token once signed in
+
+    def request(self, method, path, data=None, content_type="application/json", headers=None, token=None):
+        request = urllib.request.Request(f"{self.url}{path}", data=data, method=method)
+        request.add_header("apikey", self.key)
+        request.add_header("Authorization", f"Bearer {token or self.token}")
+        request.add_header("Content-Type", content_type)
+        for name, value in (headers or {}).items():
+            request.add_header(name, value)
+        try:
+            with urllib.request.urlopen(request) as response:
+                body = response.read()
+        except urllib.error.HTTPError as error:
+            raise SupabaseError(f"Supabase {method} {path} failed: {error.code} {error.read().decode()}") from None
+        return json.loads(body) if body else None
+
+    def sign_in(self, insta_token):
+        """Signs in like the app and links the sign-in to the grid. Returns the grid's Gridline ID."""
+        session = self.saved_session()
+        try:
+            if not session:
+                session = self.auth("/auth/v1/signup", {})
+            elif session["expires_at"] < time.time() + 60:
+                refreshed = self.auth("/auth/v1/token?grant_type=refresh_token", {"refresh_token": session["refresh_token"]})
+                session = {**refreshed, "gridline_id": session.get("gridline_id")}
+        except SupabaseError as error:
+            # Sign-in isn't enabled on this backend yet, the public key still works there
+            print(f"Not signed in, using the public key ({error})", file=sys.stderr)
+            return None
+        self.save_session(session)
+        self.token = session["access_token"]
+
+        if not session.get("gridline_id") and insta_token:
+            body = json.dumps({"access_token": insta_token}).encode()
+            try:
+                linked = self.request("POST", "/functions/v1/instagram-auth/link", body)
+            except SupabaseError as error:
+                print(f"Couldn't link to the grid ({error})", file=sys.stderr)
+                return None
+            session["gridline_id"] = linked["gridline_id"]
+            self.save_session(session)
+        return session.get("gridline_id")
+
+    def auth(self, path, payload):
+        response = self.request("POST", path, json.dumps(payload).encode(), token=self.key)
+        return {
+            "url": self.url,
+            "access_token": response["access_token"],
+            "refresh_token": response["refresh_token"],
+            "expires_at": response["expires_at"],
+        }
+
+    def saved_session(self):
+        try:
+            session = json.loads(SESSION_FILE.read_text())
+        except (OSError, ValueError):
+            return None
+        return session if session.get("url") == self.url else None
+
+    def save_session(self, session):
+        SESSION_FILE.parent.mkdir(parents=True, exist_ok=True)
+        SESSION_FILE.touch(mode=0o600)
+        SESSION_FILE.write_text(json.dumps(session))
+
+    def images(self, user_id):
+        return self.request("GET", f"/rest/v1/{TABLE}?user_id=eq.{user_id}&select=id,url,order&order=order.desc")
+
+    def upload(self, path, jpeg):
+        self.request("POST", f"/storage/v1/object/{BUCKET}/{path}", data=jpeg, content_type="image/jpeg")
+        return f"{self.url}/storage/v1/object/public/{BUCKET}/{path}"
+
+    def insert(self, row):
+        body = json.dumps(row).encode()
+        return self.request("POST", f"/rest/v1/{TABLE}", data=body, headers={"Prefer": "return=representation"})[0]
+
+    def delete(self, user_id, image_id):
+        return self.request(
+            "DELETE", f"/rest/v1/{TABLE}?id=eq.{image_id}&user_id=eq.{user_id}", headers={"Prefer": "return=representation"}
+        )
+
+
+class SupabaseError(Exception):
+    pass
+
+
+def next_rank(highest):
+    """Same as Rank.calculateRank(previous = highest) in the app: the new image goes on top."""
+    if highest < LONG_MAX - RANK_GAP:
+        return highest + RANK_GAP
+    remaining = (LONG_MAX - highest) // 2
+    return highest + remaining if remaining else LONG_MAX
+
+
+def as_jpeg(source, workdir):
+    """Downloads URLs, then shrinks to MAX_SIZE and converts to JPEG with macOS sips."""
+    if source.startswith(("http://", "https://")):
+        downloaded = Path(workdir) / f"download-{uuid.uuid4()}"
+        urllib.request.urlretrieve(source, downloaded)
+        source = str(downloaded)
+    elif not Path(source).is_file():
+        sys.exit(f"Not a file: {source}")
+
+    out = Path(workdir) / f"{uuid.uuid4()}.jpg"
+    result = subprocess.run(
+        ["sips", "-Z", str(MAX_SIZE), "-s", "format", "jpeg", source, "--out", str(out)],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0 or not out.exists():
+        sys.exit(f"Couldn't read image {source}: {result.stderr.strip()}")
+    return out.read_bytes()
+
+
+def add(supabase, user_id, sources):
+    with tempfile.TemporaryDirectory() as workdir:
+        for source in sources:
+            images = supabase.images(user_id)
+            highest = max((image["order"] for image in images), default=0)
+            url = supabase.upload(f"{user_id}/{uuid.uuid4()}.jpg", as_jpeg(source, workdir))
+            row = supabase.insert({"url": url, "order": next_rank(highest), "user_id": user_id})
+            print(f"Added {source} as #{row['id']}")
+
+
+def show(supabase, user_id):
+    for image in supabase.images(user_id):
+        print(f"#{image['id']}  {image['url'] or '(placeholder)'}")
+
+
+def remove(supabase, user_id, ids):
+    for image_id in ids:
+        deleted = supabase.delete(user_id, image_id)
+        print(f"Removed #{image_id}" if deleted else f"No image #{image_id} in this grid")
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Add images to the Gridline grid.")
+    parser.add_argument("--id", help="Gridline ID (default: from the Mac app)")
+    commands = parser.add_subparsers(dest="command", required=True)
+    commands.add_parser("add", help="add images on top of the grid").add_argument("images", nargs="+", help="files or URLs")
+    commands.add_parser("list", help="list the planned images, top first")
+    commands.add_parser("remove", help="remove planned images").add_argument("ids", nargs="+", type=int)
+    args = parser.parse_args()
+
+    props = local_properties()
+    url = os.environ.get("SUPABASE_URL") or props.get("supabaseUrl")
+    key = os.environ.get("SUPABASE_KEY") or props.get("supabaseKey")
+    if not url or not key:
+        sys.exit("Missing supabaseUrl/supabaseKey in local.properties (or SUPABASE_URL/SUPABASE_KEY)")
+    supabase = Supabase(url, key)
+    insta_token = os.environ.get("GRIDLINE_INSTA_TOKEN") or mac_app_setting("key-instaToken")
+    linked_id = supabase.sign_in(insta_token)
+    user_id = args.id or os.environ.get("GRIDLINE_ID") or linked_id or mac_app_setting("key-uuid")
+    if not user_id:
+        sys.exit("No Gridline ID found, log in to the Mac app or pass --id")
+
+    try:
+        if args.command == "add":
+            add(supabase, user_id, args.images)
+        elif args.command == "list":
+            show(supabase, user_id)
+        else:
+            remove(supabase, user_id, args.ids)
+    except SupabaseError as error:
+        sys.exit(str(error))
+
+
+if __name__ == "__main__":
+    main()
