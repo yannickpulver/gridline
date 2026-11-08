@@ -42,6 +42,10 @@ class FeedComponent(componentContext: ComponentContext, private val onReset: () 
     private val _instaPinnedFeed = MutableStateFlow(emptyList<DisplayItem.InstaItem>())
     private val _instaFeed = MutableStateFlow(emptyList<DisplayItem.InstaItem>())
     private val _supaFeed = MutableStateFlow(emptyList<DisplayItem.SupabaseItem>())
+    private val _pinnedLinks = MutableStateFlow<List<String>?>(null)
+
+    /** Links of the pinned posts while their dialog is open, null when it's closed. */
+    val pinnedLinks: StateFlow<List<String>?> = _pinnedLinks
 
     val state: StateFlow<FeedViewState> =
         combine(
@@ -102,13 +106,33 @@ class FeedComponent(componentContext: ComponentContext, private val onReset: () 
                 .catch { if (it is InstaLoginExpiredException) logOutExpired() else throw it }
                 .collect { posts ->
                     if (posts.isEmpty()) return@collect
-                    val latestIndex = posts.withIndex().maxBy { it.value.publishedAt ?: 0 }.index
-
-                    posts.withIndex().partition { it.index < latestIndex }.let { (pinned, posts) ->
-                        _instaPinnedFeed.update { pinned.map { it.value } }
-                        _instaFeed.update { posts.map { it.value } }
-                    }
+                    val (pinned, latest) = posts.partition { it.pinned }
+                    _instaPinnedFeed.update { pinned }
+                    _instaFeed.update { latest }
                 }
+        }
+    }
+
+    fun editPinnedPosts() {
+        _pinnedLinks.value = prefs.getPinnedPosts().map { "https://www.instagram.com/p/${it.shortcode}/" }
+    }
+
+    fun dismissPinnedPosts() {
+        _pinnedLinks.value = null
+    }
+
+    fun savePinnedPosts(links: List<String>) {
+        _pinnedLinks.value = null
+        val entered = links.filter { it.isNotBlank() }
+        val shortcodes = entered.mapNotNull(::shortcodeOf).distinct().take(MAX_PINNED_POSTS)
+        ioScope.launch {
+            if (shortcodes.isNotEmpty()) SnackbarStateHolder.success("Looking up pinned posts...")
+            val posts = instaApi.findPosts(shortcodes)
+            if (posts.size < entered.size) {
+                SnackbarStateHolder.error("Couldn't find ${entered.size - posts.size} of the posts on your account")
+            }
+            prefs.setPinnedPosts(posts)
+            refresh()
         }
     }
 
@@ -262,4 +286,13 @@ private fun List<ImageDto>.asItems(): List<DisplayItem.SupabaseItem> {
             order = it.order
         )
     }
+}
+
+const val MAX_PINNED_POSTS = 3
+
+/** "https://www.instagram.com/p/ABC123/?igsh=…" or just "ABC123" → "ABC123" */
+internal fun shortcodeOf(link: String): String? {
+    val trimmed = link.trim()
+    Regex("""/(?:p|reels?|tv)/([\w-]+)""").find(trimmed)?.let { return it.groupValues[1] }
+    return trimmed.takeIf { it.matches(Regex("""[\w-]+""")) }
 }

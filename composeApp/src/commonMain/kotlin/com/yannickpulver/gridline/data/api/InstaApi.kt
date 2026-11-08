@@ -3,13 +3,16 @@ package com.yannickpulver.gridline.data.api
 import com.yannickpulver.gridline.BuildKonfig
 import com.yannickpulver.gridline.data.dto.InstaErrorResponseDto
 import com.yannickpulver.gridline.data.dto.InstaLoginDto
+import com.yannickpulver.gridline.data.dto.InstaMediaDto
 import com.yannickpulver.gridline.data.dto.InstaMediaResponseDto
 import com.yannickpulver.gridline.data.dto.InstaTokenDto
 import com.yannickpulver.gridline.data.prefs.AppPrefs
+import com.yannickpulver.gridline.data.prefs.PinnedPost
 import com.yannickpulver.gridline.ui.feed.model.DisplayItem
 import com.yannickpulver.gridline.ui.snackbar.SnackbarStateHolder
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.http.isSuccess
@@ -49,7 +52,7 @@ class InstaApi(
         emit(appPrefs.getFeed())
 
         // Keep the cached feed when Instagram fails, so the grid never goes empty
-        val result = runCatching { fetchMedia(refreshedToken(token)) }.getOrElse {
+        val result = runCatching { fetchFeed(refreshedToken(token)) }.getOrElse {
             if (it is InstaLoginExpiredException) throw it
             SnackbarStateHolder.error("Couldn't fetch Instagram feed")
             return@flow
@@ -58,25 +61,69 @@ class InstaApi(
         appPrefs.setFeed(result)
     }
 
-    private suspend fun fetchMedia(token: String): List<DisplayItem.InstaItem> {
-        val response = client.get("https://graph.instagram.com/me/media") {
-            parameter("fields", "id,media_type,media_url,thumbnail_url,timestamp")
+    /** Pinned posts first, like on the profile, then the latest posts. */
+    private suspend fun fetchFeed(token: String): List<DisplayItem.InstaItem> {
+        val latest = graphGet<InstaMediaResponseDto>("$GRAPH_URL/me/media", token) {
+            parameter("fields", MEDIA_FIELDS)
             parameter("limit", 12)
-            parameter("access_token", token)
+        }.data.mapNotNull { it.toItem() }
+
+        // A pinned post that was deleted on Instagram just drops out
+        val pinned = appPrefs.getPinnedPosts().mapNotNull { post ->
+            runCatching {
+                graphGet<InstaMediaDto>("$GRAPH_URL/${post.mediaId}", token) {
+                    parameter("fields", MEDIA_FIELDS)
+                }.toItem()?.copy(pinned = true)
+            }.getOrNull()
+        }
+
+        return pinned + latest.filter { item -> pinned.none { it.mediaId == item.mediaId } }
+    }
+
+    /**
+     * Finds the posts with these [shortcodes] among the user's posts.
+     * The API can't look up a post by its link, so this pages through all posts until it found them.
+     */
+    suspend fun findPosts(shortcodes: List<String>): List<PinnedPost> {
+        val token = appPrefs.getInstaToken() ?: return emptyList()
+        val found = mutableMapOf<String, String>()
+        var page = graphGet<InstaMediaResponseDto>("$GRAPH_URL/me/media", token) {
+            parameter("fields", "id,media_type,shortcode")
+            parameter("limit", 100)
+        }
+        while (true) {
+            page.data.forEach { media -> media.shortcode?.takeIf { it in shortcodes }?.let { found[it] = media.id } }
+            val next = page.paging?.next
+            if (next == null || found.keys.containsAll(shortcodes)) break
+            // The next page's url already carries the fields and the token
+            page = graphGet(next, token = null)
+        }
+        return shortcodes.mapNotNull { code -> found[code]?.let { PinnedPost(code, it) } }
+    }
+
+    private suspend inline fun <reified T> graphGet(
+        url: String,
+        token: String?,
+        crossinline block: HttpRequestBuilder.() -> Unit = {},
+    ): T {
+        val response = client.get(url) {
+            token?.let { parameter("access_token", it) }
+            block()
         }
         if (!response.status.isSuccess()) {
             val code = runCatching { response.body<InstaErrorResponseDto>().error.code }.getOrNull()
             if (code == INVALID_TOKEN) throw InstaLoginExpiredException()
             error("Instagram responded ${response.status}")
         }
+        return response.body()
+    }
 
-        return response.body<InstaMediaResponseDto>().data.mapNotNull { media ->
-            DisplayItem.InstaItem(
-                url = media.imageUrl ?: return@mapNotNull null,
-                publishedAt = media.timestamp?.let(::parseTimestamp),
-                mediaId = media.id,
-            )
-        }
+    private fun InstaMediaDto.toItem() = imageUrl?.let { url ->
+        DisplayItem.InstaItem(
+            url = url,
+            publishedAt = timestamp?.let(::parseTimestamp),
+            mediaId = id,
+        )
     }
 
     /** Long-lived tokens last 60 days; refreshing daily keeps them alive while the app is used. */
@@ -103,6 +150,8 @@ class InstaApi(
     private companion object {
         // Expired or revoked, e.g. after a password change or removing the app in Instagram
         const val INVALID_TOKEN = 190
+        const val GRAPH_URL = "https://graph.instagram.com"
+        const val MEDIA_FIELDS = "id,media_type,media_url,thumbnail_url,timestamp"
     }
 }
 
