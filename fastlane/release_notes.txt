@@ -1,1 +1,2 @@
 Log in with your Instagram account. Your planned grid now shows up on every device you log in with.
+Pinned posts: paste the links of the posts pinned on your profile and they show first in the grid, like on Instagram.
