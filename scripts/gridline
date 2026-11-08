@@ -1,0 +1,164 @@
+#!/usr/bin/env python3
+"""Adds images to the Gridline grid from the command line, like the + button in the app.
+
+  gridline add photo.jpg other.png https://example.com/image.jpg
+  gridline list
+  gridline remove 123
+
+Open apps update right away. Needs supabaseUrl/supabaseKey in the repo's local.properties
+(or SUPABASE_URL/SUPABASE_KEY) and finds the Gridline ID in the Mac app's settings
+(or GRIDLINE_ID / --id).
+"""
+
+import argparse
+import json
+import os
+import plistlib
+import subprocess
+import sys
+import tempfile
+import urllib.request
+import uuid
+from pathlib import Path
+
+BUCKET = "images"
+TABLE = "images"
+MAX_SIZE = 500  # The app stores images at this size too
+RANK_GAP = 1 << 50
+LONG_MAX = (1 << 63) - 1
+REPO = Path(__file__).resolve().parent.parent
+
+
+def local_properties():
+    path = REPO / "local.properties"
+    if not path.exists():
+        return {}
+    pairs = (line.split("=", 1) for line in path.read_text().splitlines() if "=" in line and not line.startswith("#"))
+    return {key.strip(): value.strip() for key, value in pairs}
+
+
+def gridline_id():
+    if os.environ.get("GRIDLINE_ID"):
+        return os.environ["GRIDLINE_ID"]
+    prefs = Path.home() / "Library/Preferences/com.apple.java.util.prefs.plist"
+    try:
+        root = plistlib.loads(prefs.read_bytes())
+        return root.get("/", root).get("key-uuid")
+    except OSError:
+        return None
+
+
+class Supabase:
+    def __init__(self, url, key):
+        self.url = url.rstrip("/")
+        self.key = key
+
+    def request(self, method, path, data=None, content_type="application/json", headers=None):
+        request = urllib.request.Request(f"{self.url}{path}", data=data, method=method)
+        request.add_header("apikey", self.key)
+        request.add_header("Authorization", f"Bearer {self.key}")
+        request.add_header("Content-Type", content_type)
+        for name, value in (headers or {}).items():
+            request.add_header(name, value)
+        try:
+            with urllib.request.urlopen(request) as response:
+                body = response.read()
+        except urllib.error.HTTPError as error:
+            sys.exit(f"Supabase {method} {path} failed: {error.code} {error.read().decode()}")
+        return json.loads(body) if body else None
+
+    def images(self, user_id):
+        return self.request("GET", f"/rest/v1/{TABLE}?user_id=eq.{user_id}&select=id,url,order&order=order.desc")
+
+    def upload(self, path, jpeg):
+        self.request("POST", f"/storage/v1/object/{BUCKET}/{path}", data=jpeg, content_type="image/jpeg")
+        return f"{self.url}/storage/v1/object/public/{BUCKET}/{path}"
+
+    def insert(self, row):
+        body = json.dumps(row).encode()
+        return self.request("POST", f"/rest/v1/{TABLE}", data=body, headers={"Prefer": "return=representation"})[0]
+
+    def delete(self, user_id, image_id):
+        return self.request(
+            "DELETE", f"/rest/v1/{TABLE}?id=eq.{image_id}&user_id=eq.{user_id}", headers={"Prefer": "return=representation"}
+        )
+
+
+def next_rank(highest):
+    """Same as Rank.calculateRank(previous = highest) in the app: the new image goes on top."""
+    if highest < LONG_MAX - RANK_GAP:
+        return highest + RANK_GAP
+    remaining = (LONG_MAX - highest) // 2
+    return highest + remaining if remaining else LONG_MAX
+
+
+def as_jpeg(source, workdir):
+    """Downloads URLs, then shrinks to MAX_SIZE and converts to JPEG with macOS sips."""
+    if source.startswith(("http://", "https://")):
+        downloaded = Path(workdir) / f"download-{uuid.uuid4()}"
+        urllib.request.urlretrieve(source, downloaded)
+        source = str(downloaded)
+    elif not Path(source).is_file():
+        sys.exit(f"Not a file: {source}")
+
+    out = Path(workdir) / f"{uuid.uuid4()}.jpg"
+    result = subprocess.run(
+        ["sips", "-Z", str(MAX_SIZE), "-s", "format", "jpeg", source, "--out", str(out)],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0 or not out.exists():
+        sys.exit(f"Couldn't read image {source}: {result.stderr.strip()}")
+    return out.read_bytes()
+
+
+def add(supabase, user_id, sources):
+    with tempfile.TemporaryDirectory() as workdir:
+        for source in sources:
+            images = supabase.images(user_id)
+            highest = max((image["order"] for image in images), default=0)
+            url = supabase.upload(f"{user_id}/{uuid.uuid4()}.jpg", as_jpeg(source, workdir))
+            row = supabase.insert({"url": url, "order": next_rank(highest), "user_id": user_id})
+            print(f"Added {source} as #{row['id']}")
+
+
+def show(supabase, user_id):
+    for image in supabase.images(user_id):
+        print(f"#{image['id']}  {image['url'] or '(placeholder)'}")
+
+
+def remove(supabase, user_id, ids):
+    for image_id in ids:
+        deleted = supabase.delete(user_id, image_id)
+        print(f"Removed #{image_id}" if deleted else f"No image #{image_id} in this grid")
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Add images to the Gridline grid.")
+    parser.add_argument("--id", help="Gridline ID (default: from the Mac app)")
+    commands = parser.add_subparsers(dest="command", required=True)
+    commands.add_parser("add", help="add images on top of the grid").add_argument("images", nargs="+", help="files or URLs")
+    commands.add_parser("list", help="list the planned images, top first")
+    commands.add_parser("remove", help="remove planned images").add_argument("ids", nargs="+", type=int)
+    args = parser.parse_args()
+
+    props = local_properties()
+    url = os.environ.get("SUPABASE_URL") or props.get("supabaseUrl")
+    key = os.environ.get("SUPABASE_KEY") or props.get("supabaseKey")
+    if not url or not key:
+        sys.exit("Missing supabaseUrl/supabaseKey in local.properties (or SUPABASE_URL/SUPABASE_KEY)")
+    user_id = args.id or gridline_id()
+    if not user_id:
+        sys.exit("No Gridline ID found, log in to the Mac app or pass --id")
+
+    supabase = Supabase(url, key)
+    if args.command == "add":
+        add(supabase, user_id, args.images)
+    elif args.command == "list":
+        show(supabase, user_id)
+    else:
+        remove(supabase, user_id, args.ids)
+
+
+if __name__ == "__main__":
+    main()
