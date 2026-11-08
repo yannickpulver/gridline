@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import compose.icons.TablerIcons
 import compose.icons.tablericons.EyeOff
+import compose.icons.tablericons.Pin
 import compose.icons.tablericons.Trash
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -167,6 +168,20 @@ private fun InstaGridItem(
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize()
         )
+
+        if (item.pinned) {
+            Icon(
+                imageVector = TablerIcons.Pin,
+                contentDescription = "Pinned",
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .size(20.dp)
+                    .padding(2.dp)
+                    .background(Color.Black.copy(0.5f), RoundedCornerShape(4.dp))
+                    .padding(2.dp),
+                tint = Color.White
+            )
+        }
 
         Icon(
             imageVector = TablerIcons.EyeOff,
