@@ -69,6 +69,7 @@ kotlin {
             implementation(libs.kotlinx.serialization.json)
 
             implementation(project.dependencies.platform(libs.supabase.bom))
+            implementation(libs.supabase.auth)
             implementation(libs.supabase.postgrest)
             implementation(libs.supabase.storage)
             implementation(libs.supabase.realtime)

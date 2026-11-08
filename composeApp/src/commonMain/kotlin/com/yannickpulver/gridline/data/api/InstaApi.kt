@@ -6,6 +6,8 @@ import com.yannickpulver.gridline.data.dto.InstaLoginDto
 import com.yannickpulver.gridline.data.dto.InstaMediaDto
 import com.yannickpulver.gridline.data.dto.InstaMediaResponseDto
 import com.yannickpulver.gridline.data.dto.InstaTokenDto
+import com.yannickpulver.gridline.data.dto.LinkRequestDto
+import com.yannickpulver.gridline.data.dto.LinkResponseDto
 import com.yannickpulver.gridline.data.prefs.AppPrefs
 import com.yannickpulver.gridline.data.prefs.PinnedPost
 import com.yannickpulver.gridline.ui.feed.model.DisplayItem
@@ -13,7 +15,12 @@ import com.yannickpulver.gridline.ui.snackbar.SnackbarStateHolder
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.HttpRequestBuilder
+import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.get
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
+import io.ktor.http.contentType
 import io.ktor.client.request.parameter
 import io.ktor.http.isSuccess
 import kotlinx.coroutines.flow.Flow
@@ -45,6 +52,20 @@ class InstaApi(
         }
         if (!response.status.isSuccess()) return null
         return response.body<InstaLoginDto>()
+    }
+
+    /**
+     * Links the Supabase sign-in behind [supabaseToken] to the grid of the Instagram account behind
+     * [instaToken]. Returns the account's Gridline ID, null when it didn't work.
+     */
+    suspend fun link(instaToken: String, supabaseToken: String): String? {
+        val response = client.post("$authUrl/link") {
+            bearerAuth(supabaseToken)
+            contentType(ContentType.Application.Json)
+            setBody(LinkRequestDto(instaToken))
+        }
+        if (!response.status.isSuccess()) return null
+        return response.body<LinkResponseDto>().gridlineId
     }
 
     fun getFeed(): Flow<List<DisplayItem.InstaItem>> = flow {
