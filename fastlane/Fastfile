@@ -93,6 +93,7 @@ platform :ios do
 
     desc "Build, upload and submit the iOS app for review, it goes live once approved"
     lane :deploy_prod do |options|
+      release_notes = File.read("release_notes.txt").strip
       setup_ci if ENV['CI']
       increment_build
       match # if ci is set, will run in readonly mode
@@ -100,7 +101,8 @@ platform :ios do
       upload_to_app_store(
         api_key_path: "fastlane/mac-api-key.json",
         app_identifier: "com.yannickpulver.gridline",
-        release_notes: { "default" => File.read("release_notes.txt").strip },
+        # "default" alone doesn't reach the app's only language, en-GB, and review then fails
+        release_notes: { "default" => release_notes, "en-GB" => release_notes },
         submit_for_review: true,
         automatic_release: true,
         force: true,
