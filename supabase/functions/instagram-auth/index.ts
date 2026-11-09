@@ -1,7 +1,9 @@
 // Instagram Login for Gridline.
 //
-// 1. App opens  /instagram-auth/login?state=<uuid>   → redirects to Instagram
-// 2. Instagram → /instagram-auth/callback?code&state → long-lived token stored under state
+// 1. App opens Instagram's authorize page with state=<uuid>.<platform> and this callback
+//    (InstaApi.loginUrl). Builds before 1.2.13 open /instagram-auth/login?state=<uuid> instead.
+// 2. Instagram → /instagram-auth/callback?code&state → long-lived token stored under the uuid,
+//    then the Android and iOS apps get sent back to the app (see RETURN_URLS)
 // 3. App polls  /instagram-auth/token?state=<uuid>&gridline_id=<uuid or empty>
 //    → gets the token and the account's Gridline ID once, row is deleted
 // 4. App signs in to Supabase anonymously and calls POST /instagram-auth/link with that session and
@@ -13,7 +15,19 @@ import { createClient } from "npm:@supabase/supabase-js@2.49.4";
 
 const APP_ID = Deno.env.get("INSTAGRAM_APP_ID")!;
 const APP_SECRET = Deno.env.get("INSTAGRAM_APP_SECRET")!;
-const CALLBACK_URL = `${Deno.env.get("SUPABASE_URL")}/functions/v1/instagram-auth/callback`;
+const FUNCTION_URL = `${Deno.env.get("SUPABASE_URL")}/functions/v1/instagram-auth`;
+const CALLBACK_URL = `${FUNCTION_URL}/callback`;
+// Where the login ends for the platform in the state: back in the app, which closes the Custom Tab
+// (Android) or the login sheet (iOS). Without a platform (desktop, older builds) the page stays.
+const RETURN_URLS = new Map([
+  [
+    "android",
+    "intent://login#Intent;scheme=gridline;package=com.yannickpulver.gridline;" +
+    `S.browser_fallback_url=${encodeURIComponent(`${FUNCTION_URL}/done`)};end`,
+  ],
+  ["ios", "gridline://login"],
+]);
+const LOGGED_IN = "Logged in with Instagram. You can go back to Gridline now.";
 const LOGIN_TTL_MINUTES = 10;
 
 const db = createClient(
@@ -26,12 +40,13 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 Deno.serve(async (req) => {
   const url = new URL(req.url);
   if (url.pathname.endsWith("/link")) return link(req);
+  if (url.pathname.endsWith("/done")) return text(LOGGED_IN);
 
-  const state = url.searchParams.get("state") ?? "";
+  const [state, platform] = (url.searchParams.get("state") ?? "").split(".");
   if (!UUID.test(state)) return text("Invalid state", 400);
 
   if (url.pathname.endsWith("/login")) return login(state);
-  if (url.pathname.endsWith("/callback")) return callback(state, url.searchParams);
+  if (url.pathname.endsWith("/callback")) return callback(state, url.searchParams, RETURN_URLS.get(platform));
   if (url.pathname.endsWith("/token")) return token(state, url.searchParams.get("gridline_id"));
   return text("Not found", 404);
 });
@@ -47,7 +62,7 @@ function login(state: string) {
   return Response.redirect(authorize.toString(), 302);
 }
 
-async function callback(state: string, params: URLSearchParams) {
+async function callback(state: string, params: URLSearchParams, returnUrl: string | undefined) {
   const code = params.get("code");
   if (!code) return text(`Instagram login cancelled: ${params.get("error_description") ?? "no code"}`, 400);
 
@@ -97,7 +112,7 @@ async function callback(state: string, params: URLSearchParams) {
     return text("Instagram login failed. Please try again in Gridline.", 500);
   }
 
-  return text("Logged in with Instagram. You can go back to Gridline now.");
+  return returnUrl ? Response.redirect(returnUrl, 302) : text(LOGGED_IN);
 }
 
 async function token(state: string, deviceGridlineId: string | null) {

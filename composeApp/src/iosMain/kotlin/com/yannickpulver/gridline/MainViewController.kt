@@ -1,5 +1,7 @@
 package com.yannickpulver.gridline
 
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.window.ComposeUIViewController
 import co.touchlab.kermit.Logger
 import co.touchlab.kermit.XcodeSeverityWriter
@@ -17,7 +19,11 @@ fun MainViewController(): UIViewController {
             componentContext = DefaultComponentContext(lifecycle = ApplicationLifecycle()),
         )
 
+    val uriHandler = AuthSessionUriHandler()
+
     return ComposeUIViewController {
-        App(rootComponent = rootComponent)
+        CompositionLocalProvider(LocalUriHandler provides uriHandler) {
+            App(rootComponent = rootComponent)
+        }
     }
 }

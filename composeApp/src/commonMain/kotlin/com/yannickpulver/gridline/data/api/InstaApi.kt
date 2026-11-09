@@ -20,6 +20,7 @@ import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
+import io.ktor.http.URLBuilder
 import io.ktor.http.contentType
 import io.ktor.client.request.parameter
 import io.ktor.http.isSuccess
@@ -37,8 +38,19 @@ class InstaApi(
 
     private val authUrl = "${BuildKonfig.SUPABASE_URL.trimEnd('/')}/functions/v1/instagram-auth"
 
-    /** Opens Instagram's login page; the token is picked up afterwards with [fetchLogin]. */
-    fun loginUrl(state: String) = "$authUrl/login?state=$state"
+    /**
+     * Instagram's login page; the token is picked up afterwards with [fetchLogin]. It opens Instagram
+     * directly instead of redirecting through instagram-auth/login: on Android that redirect made
+     * the browser hand the login to the Instagram app. [platform] tells the callback where to return.
+     */
+    fun loginUrl(state: String, platform: String? = loginPlatform) = URLBuilder("https://www.instagram.com/oauth/authorize").apply {
+        parameters.append("client_id", INSTAGRAM_APP_ID)
+        parameters.append("redirect_uri", "$authUrl/callback")
+        parameters.append("response_type", "code")
+        parameters.append("scope", "instagram_business_basic")
+        parameters.append("enable_fb_login", "false")
+        parameters.append("state", listOfNotNull(state, platform).joinToString("."))
+    }.buildString()
 
     /**
      * Returns the login once the user finished it in the browser, null while pending.
@@ -172,6 +184,8 @@ class InstaApi(
         // Expired or revoked, e.g. after a password change or removing the app in Instagram
         const val INVALID_TOKEN = 190
         const val GRAPH_URL = "https://graph.instagram.com"
+        // Instagram app ID of the Meta app "Gridline" (public, also in the login URL)
+        const val INSTAGRAM_APP_ID = "1797906374484097"
         const val MEDIA_FIELDS = "id,media_type,media_url,thumbnail_url,timestamp"
     }
 }
