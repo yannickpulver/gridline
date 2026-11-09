@@ -41,15 +41,15 @@ class InstaApi(
     /**
      * Instagram's login page; the token is picked up afterwards with [fetchLogin]. It opens Instagram
      * directly instead of redirecting through instagram-auth/login: on Android that redirect made
-     * the browser hand the login to the Instagram app.
+     * the browser hand the login to the Instagram app. [platform] tells the callback where to return.
      */
-    fun loginUrl(state: String) = URLBuilder("https://www.instagram.com/oauth/authorize").apply {
+    fun loginUrl(state: String, platform: String? = loginPlatform) = URLBuilder("https://www.instagram.com/oauth/authorize").apply {
         parameters.append("client_id", INSTAGRAM_APP_ID)
         parameters.append("redirect_uri", "$authUrl/callback")
         parameters.append("response_type", "code")
         parameters.append("scope", "instagram_business_basic")
         parameters.append("enable_fb_login", "false")
-        parameters.append("state", state)
+        parameters.append("state", listOfNotNull(state, platform).joinToString("."))
     }.buildString()
 
     /**

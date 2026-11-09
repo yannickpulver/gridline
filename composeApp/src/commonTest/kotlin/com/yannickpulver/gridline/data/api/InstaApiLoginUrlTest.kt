@@ -29,4 +29,10 @@ class InstaApiLoginUrlTest {
         assertEquals("false", url.parameters["enable_fb_login"])
         assertEquals("abc", url.parameters["state"])
     }
+
+    // The callback sends Android and iOS back into the app, desktop keeps the browser page
+    @Test
+    fun loginUrlAddsThePlatformToTheState() {
+        assertEquals("abc.ios", Url(api.loginUrl("abc", platform = "ios")).parameters["state"])
+    }
 }

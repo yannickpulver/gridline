@@ -12,8 +12,8 @@ on:
         description: "Only release Android"
         type: boolean
         default: false
-      android_internal:
-        description: "Only Android, to the internal test track"
+      internal:
+        description: "Test build only: Android internal track and iOS TestFlight, no Mac"
         type: boolean
         default: false
 
@@ -27,7 +27,7 @@ env:
 
 jobs:
   deploy-ios:
-    if: ${{ !inputs.android_only && !inputs.android_internal }}
+    if: ${{ !inputs.android_only }}
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v7
@@ -46,8 +46,8 @@ jobs:
         env:
           KEY: ${{ secrets.APPSTORE_CONNECT_API_JSON }}
 
-      - name: Build, upload and submit to App Store review
-        run: bundle exec fastlane ios deploy_prod
+      - name: Build and upload (TestFlight when internal, else App Store review)
+        run: bundle exec fastlane ios ${{ inputs.internal && 'deploy' || 'deploy_prod' }}
         env:
           MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
@@ -83,13 +83,13 @@ jobs:
           PLAY_CONSOLE_CREDENTIALS_JSON: ${{ secrets.PLAY_CONSOLE_CREDENTIALS_JSON }}
 
       - name: Build and release on Play Store
-        run: bundle exec fastlane android ${{ inputs.android_internal && 'deploy' || 'deploy_prod' }}
+        run: bundle exec fastlane android ${{ inputs.internal && 'deploy' || 'deploy_prod' }}
         env:
           ANDROID_SIGNING_KEY: ${{ secrets.ANDROID_SIGNING_KEY }}
           ANDROID_SIGNING_ALIAS: ${{ secrets.ANDROID_SIGNING_ALIAS }}
 
   deploy-mac-store:
-    if: ${{ !inputs.android_only && !inputs.android_internal }}
+    if: ${{ !inputs.android_only && !inputs.internal }}
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v7
@@ -137,7 +137,7 @@ jobs:
           for f in composeApp/build/compose/logs/**/*.txt; do echo "=== $f ==="; cat "$f"; done
 
   build-mac:
-    if: ${{ !inputs.android_only && !inputs.android_internal }}
+    if: ${{ !inputs.android_only && !inputs.internal }}
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v7
@@ -185,7 +185,7 @@ jobs:
 
   release-mac:
     needs: [ build-mac, deploy-ios, deploy-android, deploy-mac-store ]
-    if: ${{ !inputs.android_only && !inputs.android_internal }}
+    if: ${{ !inputs.android_only && !inputs.internal }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
