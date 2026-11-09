@@ -1,1 +1,1 @@
-Smoother Instagram login: it opens in a login sheet inside Gridline and brings you straight back to your grid, instead of jumping to the Instagram app.
+Your Instagram username and profile picture now show on top of your grid.

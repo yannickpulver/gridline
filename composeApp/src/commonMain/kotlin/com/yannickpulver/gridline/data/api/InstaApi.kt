@@ -1,6 +1,7 @@
 package com.yannickpulver.gridline.data.api
 
 import com.yannickpulver.gridline.BuildKonfig
+import com.yannickpulver.gridline.data.dto.InstaAccountDto
 import com.yannickpulver.gridline.data.dto.InstaErrorResponseDto
 import com.yannickpulver.gridline.data.dto.InstaLoginDto
 import com.yannickpulver.gridline.data.dto.InstaMediaDto
@@ -92,6 +93,20 @@ class InstaApi(
         }
         emit(result)
         appPrefs.setFeed(result)
+    }
+
+    /** The cached account first, then the current one; a failed request keeps the cached one. */
+    fun getAccount(): Flow<InstaAccountDto> = flow {
+        val token = appPrefs.getInstaToken() ?: return@flow
+        appPrefs.getAccount()?.let { emit(it) }
+
+        val account = runCatching {
+            graphGet<InstaAccountDto>("$GRAPH_URL/me", token) {
+                parameter("fields", "username,profile_picture_url")
+            }
+        }.getOrNull() ?: return@flow
+        emit(account)
+        appPrefs.setAccount(account)
     }
 
     /** Pinned posts first, like on the profile, then the latest posts. */

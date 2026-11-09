@@ -8,6 +8,7 @@ import com.yannickpulver.gridline.data.api.InstaApi
 import com.yannickpulver.gridline.data.api.InstaLoginExpiredException
 import com.yannickpulver.gridline.data.api.SupabaseApi
 import com.yannickpulver.gridline.data.dto.ImageDto
+import com.yannickpulver.gridline.data.dto.InstaAccountDto
 import com.yannickpulver.gridline.data.observeSharedImages
 import com.yannickpulver.gridline.data.dto.ImageOrderUpdateDto
 import com.yannickpulver.gridline.data.prefs.AppPrefs
@@ -45,6 +46,7 @@ class FeedComponent(componentContext: ComponentContext, private val onReset: () 
     private val _instaFeed = MutableStateFlow(emptyList<DisplayItem.InstaItem>())
     private val _supaFeed = MutableStateFlow(emptyList<DisplayItem.SupabaseItem>())
     private val _pinnedLinks = MutableStateFlow<List<String>?>(null)
+    private val _account = MutableStateFlow<InstaAccountDto?>(null)
 
     /** Links of the pinned posts while their dialog is open, null when it's closed. */
     val pinnedLinks: StateFlow<List<String>?> = _pinnedLinks
@@ -62,7 +64,7 @@ class FeedComponent(componentContext: ComponentContext, private val onReset: () 
                 storedImages = storedImages,
                 showBorders = showBorders
             )
-        }.stateIn(
+        }.combine(_account) { state, account -> state.copy(account = account) }.stateIn(
             scope = CoroutineScope(Dispatchers.Default),
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = FeedViewState(),
@@ -101,6 +103,7 @@ class FeedComponent(componentContext: ComponentContext, private val onReset: () 
     private fun refresh() {
         refreshJob?.cancel()
         refreshJob = ioScope.launch {
+            launch { instaApi.getAccount().collect { _account.value = it } }
             launch {
                 gridAccess.ensureLinked()
                 _supaFeed.update { supabaseApi.fetchImages().asItems() }
