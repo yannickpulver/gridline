@@ -1,6 +1,7 @@
 // Instagram Login for Gridline.
 //
-// 1. App opens  /instagram-auth/login?state=<uuid>   → redirects to Instagram
+// 1. App opens Instagram's authorize page with state=<uuid> and this callback (InstaApi.loginUrl).
+//    Builds before 1.2.13 open /instagram-auth/login?state=<uuid> instead, which redirects there.
 // 2. Instagram → /instagram-auth/callback?code&state → long-lived token stored under state
 // 3. App polls  /instagram-auth/token?state=<uuid>&gridline_id=<uuid or empty>
 //    → gets the token and the account's Gridline ID once, row is deleted
