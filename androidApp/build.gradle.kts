@@ -17,6 +17,7 @@ dependencies {
     implementation(projects.composeApp)
 
     implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.browser)
     implementation(libs.koin.android)
     debugImplementation(libs.compose.uiTooling)
 }

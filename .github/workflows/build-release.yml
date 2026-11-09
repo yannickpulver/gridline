@@ -12,6 +12,10 @@ on:
         description: "Only release Android"
         type: boolean
         default: false
+      android_internal:
+        description: "Only Android, to the internal test track"
+        type: boolean
+        default: false
 
 concurrency:
   group: release
@@ -23,7 +27,7 @@ env:
 
 jobs:
   deploy-ios:
-    if: ${{ !inputs.android_only }}
+    if: ${{ !inputs.android_only && !inputs.android_internal }}
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v7
@@ -79,13 +83,13 @@ jobs:
           PLAY_CONSOLE_CREDENTIALS_JSON: ${{ secrets.PLAY_CONSOLE_CREDENTIALS_JSON }}
 
       - name: Build and release on Play Store
-        run: bundle exec fastlane android deploy_prod
+        run: bundle exec fastlane android ${{ inputs.android_internal && 'deploy' || 'deploy_prod' }}
         env:
           ANDROID_SIGNING_KEY: ${{ secrets.ANDROID_SIGNING_KEY }}
           ANDROID_SIGNING_ALIAS: ${{ secrets.ANDROID_SIGNING_ALIAS }}
 
   deploy-mac-store:
-    if: ${{ !inputs.android_only }}
+    if: ${{ !inputs.android_only && !inputs.android_internal }}
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v7
@@ -133,7 +137,7 @@ jobs:
           for f in composeApp/build/compose/logs/**/*.txt; do echo "=== $f ==="; cat "$f"; done
 
   build-mac:
-    if: ${{ !inputs.android_only }}
+    if: ${{ !inputs.android_only && !inputs.android_internal }}
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v7
@@ -181,7 +185,7 @@ jobs:
 
   release-mac:
     needs: [ build-mac, deploy-ios, deploy-android, deploy-mac-store ]
-    if: ${{ !inputs.android_only }}
+    if: ${{ !inputs.android_only && !inputs.android_internal }}
     runs-on: ubuntu-latest
     permissions:
       contents: write

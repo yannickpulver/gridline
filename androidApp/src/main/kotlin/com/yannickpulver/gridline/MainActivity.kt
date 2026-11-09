@@ -1,10 +1,16 @@
 package com.yannickpulver.gridline
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.browser.customtabs.CustomTabsIntent
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.UriHandler
+import androidx.core.net.toUri
 import androidx.core.view.WindowCompat
 import com.arkivanov.decompose.ExperimentalDecomposeApi
 import com.arkivanov.decompose.retainedComponent
@@ -23,7 +29,9 @@ class MainActivity : ComponentActivity() {
         handleShareIntent(intent)
 
         setContent {
-            App(rootComponent = root)
+            CompositionLocalProvider(LocalUriHandler provides CustomTabUriHandler(this)) {
+                App(rootComponent = root)
+            }
         }
     }
 
@@ -66,5 +74,12 @@ class MainActivity : ComponentActivity() {
         } catch (e: Exception) {
             null
         }
+    }
+}
+
+// Links (like the Instagram login) open in a Custom Tab, so they stay in a browser instead of jumping to the Instagram app
+private class CustomTabUriHandler(private val context: Context) : UriHandler {
+    override fun openUri(uri: String) {
+        CustomTabsIntent.Builder().build().launchUrl(context, uri.toUri())
     }
 }
