@@ -26,6 +26,13 @@ data class InstaMediaDto(
     val imageUrl: String? get() = if (mediaType == "VIDEO") thumbnailUrl else mediaUrl
 }
 
+/** The logged-in account, shown above the grid. */
+@Serializable
+data class InstaAccountDto(
+    val username: String,
+    @SerialName("profile_picture_url") val profilePictureUrl: String? = null,
+)
+
 @Serializable
 data class InstaLoginDto(
     @SerialName("access_token") val accessToken: String,

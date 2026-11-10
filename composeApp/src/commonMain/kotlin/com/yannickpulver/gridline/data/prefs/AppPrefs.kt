@@ -6,6 +6,7 @@ import com.russhwolf.settings.serialization.containsValue
 import com.russhwolf.settings.serialization.decodeValueOrNull
 import com.russhwolf.settings.serialization.encodeValue
 import com.russhwolf.settings.serialization.removeValue
+import com.yannickpulver.gridline.data.dto.InstaAccountDto
 import com.yannickpulver.gridline.ui.feed.model.DisplayItem
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
@@ -49,6 +50,13 @@ class AppPrefs(private val settings: Settings, private val clock: Clock = Clock.
         settings.encodeValue(InstaItemListSerializer, KEY_FEED, items)
     }
 
+    fun getAccount(): InstaAccountDto? =
+        settings.decodeValueOrNull(InstaAccountDto.serializer(), KEY_ACCOUNT)
+
+    fun setAccount(account: InstaAccountDto) {
+        settings.encodeValue(InstaAccountDto.serializer(), KEY_ACCOUNT, account)
+    }
+
     /** Instagram's API doesn't say which posts are pinned, so the user tells us. */
     fun getPinnedPosts(): List<PinnedPost> =
         settings.decodeValueOrNull(PinnedPostListSerializer, KEY_PINNED_POSTS).orEmpty()
@@ -83,6 +91,7 @@ class AppPrefs(private val settings: Settings, private val clock: Clock = Clock.
         // The Gridline ID stays: the next login links it to the account if the account has none yet
         settings.removeValue(InstaItemListSerializer, KEY_FEED)
         settings.removeValue(PinnedPostListSerializer, KEY_PINNED_POSTS)
+        settings.removeValue(InstaAccountDto.serializer(), KEY_ACCOUNT)
     }
 
     companion object {
@@ -95,6 +104,7 @@ class AppPrefs(private val settings: Settings, private val clock: Clock = Clock.
         const val KEY_SHOWBORDERS = "key-showBorders"
         const val KEY_PINNED_POSTS = "key-pinnedPosts"
         const val KEY_LINKED_SIGN_IN = "key-linkedSignIn"
+        const val KEY_ACCOUNT = "key-account"
     }
 }
 

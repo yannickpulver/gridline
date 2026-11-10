@@ -68,7 +68,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import coil3.compose.SubcomposeAsyncImage
+import com.yannickpulver.gridline.data.dto.InstaAccountDto
 import com.yannickpulver.gridline.ui.feed.model.DisplayItem
 
 expect val hasHeader: Boolean
@@ -101,35 +103,43 @@ fun FeedScreen(component: FeedComponent, modifier: Modifier = Modifier) {
             val isWide = maxWidth >= 600.dp
 
             val feedArea: @Composable () -> Unit = {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    Feed(
-                        state = state.value,
-                        onMove = component::onMove,
-                        onDelete = component::onDelete,
-                        onItemClick = {
-                            selectedItem.value =
-                                if (selectedItem.value?.url == it.url) (if (selectedItem.value != null) null else it) else it
-                        },
-                        showBorders = state.value.showBorders,
-                        onHide = component::hideImage
-                    )
-                    // With a header, adding images sits in it
+                Column(modifier = Modifier.fillMaxSize()) {
+                    // Without a header, the account sits above the grid
                     if (!hasHeader) {
-                        Box(
-                            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                                .navigationBarsPadding().padding(16.dp)
-                        ) {
-                            PhotoPickerWrapper(component::addImages) { onClick ->
-                                FloatingActionButton(
-                                    onClick = onClick,
-                                    containerColor = Color.Black,
-                                    contentColor = Color.White,
-                                    modifier = Modifier.align(Alignment.Center)
-                                ) {
-                                    Icon(
-                                        imageVector = TablerIcons.Plus,
-                                        contentDescription = null
-                                    )
+                        state.value.account?.let {
+                            AccountTitle(it, Modifier.padding(horizontal = 16.dp, vertical = 12.dp))
+                        }
+                    }
+                    Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                        Feed(
+                            state = state.value,
+                            onMove = component::onMove,
+                            onDelete = component::onDelete,
+                            onItemClick = {
+                                selectedItem.value =
+                                    if (selectedItem.value?.url == it.url) (if (selectedItem.value != null) null else it) else it
+                            },
+                            showBorders = state.value.showBorders,
+                            onHide = component::hideImage
+                        )
+                        // With a header, adding images sits in it
+                        if (!hasHeader) {
+                            Box(
+                                modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                                    .navigationBarsPadding().padding(16.dp)
+                            ) {
+                                PhotoPickerWrapper(component::addImages) { onClick ->
+                                    FloatingActionButton(
+                                        onClick = onClick,
+                                        containerColor = Color.Black,
+                                        contentColor = Color.White,
+                                        modifier = Modifier.align(Alignment.Center)
+                                    ) {
+                                        Icon(
+                                            imageVector = TablerIcons.Plus,
+                                            contentDescription = null
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -187,7 +197,7 @@ private fun TopBar(
                     )
                 }
             }
-            Text(
+            state.account?.let { AccountTitle(it) } ?: Text(
                 "Gridline",
                 color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.SemiBold
@@ -209,6 +219,31 @@ private fun TopBar(
             )
         }
         Divider()
+    }
+}
+
+/** The logged-in Instagram account, like the name on top of an Instagram profile. */
+@Composable
+private fun AccountTitle(account: InstaAccountDto, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        account.profilePictureUrl?.let { url ->
+            AsyncImage(
+                model = url,
+                contentDescription = "Profile picture",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.size(28.dp).clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+            )
+        }
+        Text(
+            account.username,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.SemiBold
+        )
     }
 }
 
