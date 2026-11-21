@@ -1,1 +1,1 @@
-Your Instagram username and profile picture now show on top of your grid.
+Gridline now works offline: add, move and delete images without a connection, they sync once you're back online.

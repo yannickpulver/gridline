@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import compose.icons.TablerIcons
+import compose.icons.tablericons.CloudUpload
 import compose.icons.tablericons.EyeOff
 import compose.icons.tablericons.Pin
 import compose.icons.tablericons.Trash
@@ -45,6 +46,7 @@ import coil3.compose.LocalPlatformContext
 import coil3.compose.SubcomposeAsyncImage
 import coil3.request.ImageRequest
 import com.yannickpulver.gridline.ui.feed.model.DisplayItem
+import okio.Path.Companion.toPath
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.ReorderableLazyGridState
 import sh.calvin.reorderable.rememberReorderableLazyGridState
@@ -229,7 +231,7 @@ private fun LazyGridItemScope.ReorderableGridItem(
                 .shadow(elevation.value)
                 .longPressDraggableHandle(onDragStarted = { hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress) })
         ) {
-            if (item.url != null) {
+            if (item.url != null || item.file != null) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -237,7 +239,8 @@ private fun LazyGridItemScope.ReorderableGridItem(
                         .align(Alignment.Center)
                 ) {
                     SubcomposeAsyncImage(
-                        model = item.url,
+                        // Images added offline show from the device until they're uploaded
+                        model = item.file?.toPath() ?: item.url,
                         loading = { ImageLoader() },
                         onSuccess = {
                             borderType =
@@ -255,6 +258,20 @@ private fun LazyGridItemScope.ReorderableGridItem(
                 Box(
                     modifier = Modifier.aspectRatio(3 / 4f)
                         .background(Color.LightGray)
+                )
+            }
+
+            if (item.pending) {
+                Icon(
+                    imageVector = TablerIcons.CloudUpload,
+                    contentDescription = "Not synced yet",
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .size(20.dp)
+                        .padding(2.dp)
+                        .background(Color.Black.copy(0.5f), RoundedCornerShape(4.dp))
+                        .padding(2.dp),
+                    tint = Color.White
                 )
             }
 
