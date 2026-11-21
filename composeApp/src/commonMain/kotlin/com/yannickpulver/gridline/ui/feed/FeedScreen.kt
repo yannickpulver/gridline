@@ -117,7 +117,7 @@ fun FeedScreen(component: FeedComponent, modifier: Modifier = Modifier) {
                             onDelete = component::onDelete,
                             onItemClick = {
                                 selectedItem.value =
-                                    if (selectedItem.value?.url == it.url) (if (selectedItem.value != null) null else it) else it
+                                    if (selectedItem.value?.key == it.key) null else it
                             },
                             showBorders = state.value.showBorders,
                             onHide = component::hideImage
@@ -384,7 +384,7 @@ private fun BottomContainerContent(
             } else {
                 selectedItem.value?.let { current ->
                     component.exchangeImage(current, url)
-                    selectedItem.value = current.copy(url = url)
+                    selectedItem.value = current.copy(url = url, file = null)
                 }
             }
         }

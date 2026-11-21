@@ -19,13 +19,7 @@ data class ImageDto(
 )
 
 @Serializable
-data class ImageOrderUpdateDto(
-    @SerialName("id") val id: Int,
-    @SerialName("order") val order: Long
-)
-
-@Serializable
-data class ImageUrlUpdateDto(
-    @SerialName("id") val id: Int,
+data class ImageUpdateDto(
+    @SerialName("order") val order: Long,
     @SerialName("url") val url: String?
 )

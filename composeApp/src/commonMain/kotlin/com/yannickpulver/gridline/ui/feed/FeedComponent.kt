@@ -3,14 +3,13 @@ package com.yannickpulver.gridline.ui.feed
 import co.touchlab.kermit.Logger
 import com.arkivanov.decompose.ComponentContext
 import com.arkivanov.essenty.lifecycle.doOnResume
-import com.yannickpulver.gridline.data.api.GridAccess
 import com.yannickpulver.gridline.data.api.InstaApi
 import com.yannickpulver.gridline.data.api.InstaLoginExpiredException
 import com.yannickpulver.gridline.data.api.SupabaseApi
-import com.yannickpulver.gridline.data.dto.ImageDto
 import com.yannickpulver.gridline.data.dto.InstaAccountDto
+import com.yannickpulver.gridline.data.grid.GridImage
+import com.yannickpulver.gridline.data.grid.GridStore
 import com.yannickpulver.gridline.data.observeSharedImages
-import com.yannickpulver.gridline.data.dto.ImageOrderUpdateDto
 import com.yannickpulver.gridline.data.prefs.AppPrefs
 import com.yannickpulver.gridline.ui.feed.model.DisplayItem
 import com.yannickpulver.gridline.ui.snackbar.SnackbarStateHolder
@@ -38,13 +37,12 @@ class FeedComponent(componentContext: ComponentContext, private val onReset: () 
     ComponentContext by componentContext {
     private val instaApi: InstaApi by inject()
     private val supabaseApi: SupabaseApi by inject()
-    private val gridAccess: GridAccess by inject()
+    private val gridStore: GridStore by inject()
     private val prefs: AppPrefs by inject()
 
     private val _showBorders = MutableStateFlow(prefs.showBorders())
     private val _instaPinnedFeed = MutableStateFlow(emptyList<DisplayItem.InstaItem>())
     private val _instaFeed = MutableStateFlow(emptyList<DisplayItem.InstaItem>())
-    private val _supaFeed = MutableStateFlow(emptyList<DisplayItem.SupabaseItem>())
     private val _pinnedLinks = MutableStateFlow<List<String>?>(null)
     private val _account = MutableStateFlow<InstaAccountDto?>(null)
 
@@ -54,7 +52,7 @@ class FeedComponent(componentContext: ComponentContext, private val onReset: () 
     val state: StateFlow<FeedViewState> =
         combine(
             _instaFeed,
-            _supaFeed,
+            gridStore.images.map { it.asItems() },
             _instaPinnedFeed,
             supabaseApi.observeStoredImages(),
             _showBorders,
@@ -84,13 +82,6 @@ class FeedComponent(componentContext: ComponentContext, private val onReset: () 
 
     init {
         ioScope.launch {
-            gridAccess.ensureLinked()
-            supabaseApi.observeImages(ioScope).map { it.asItems() }.collect { images ->
-                _supaFeed.update { images }
-            }
-        }
-
-        ioScope.launch {
             observeSharedImages().collect { images ->
                 addImages(images)
             }
@@ -104,10 +95,7 @@ class FeedComponent(componentContext: ComponentContext, private val onReset: () 
         refreshJob?.cancel()
         refreshJob = ioScope.launch {
             launch { instaApi.getAccount().collect { _account.value = it } }
-            launch {
-                gridAccess.ensureLinked()
-                _supaFeed.update { supabaseApi.fetchImages().asItems() }
-            }
+            gridStore.requestSync()
 
             instaApi.getFeed()
                 .catch { if (it is InstaLoginExpiredException) logOutExpired() else throw it }
@@ -154,89 +142,20 @@ class FeedComponent(componentContext: ComponentContext, private val onReset: () 
         }
     }
 
-    // Convert to event (so that it gets properly handled)
+    /** [previousItem] and [nextItem] are the items above and below [displayItem] after the move. */
     fun onMove(displayItem: DisplayItem, previousItem: DisplayItem?, nextItem: DisplayItem?) {
-        val nextRank = (previousItem as? DisplayItem.SupabaseItem) // flipped on purpose
-        val previousRank = (nextItem as? DisplayItem.SupabaseItem)
-
-
-        if (displayItem is DisplayItem.SupabaseItem) {
-            val rank = runCatching {
-                Rank.calculateRank(previous = previousRank?.order, next = nextRank?.order)
-            }
-
-            rank.fold(
-                onSuccess = {
-                    Logger.i {  "Ranking single item: ${displayItem.supaId} to $it" }
-                    ioScope.launch {
-                        supabaseApi.updateImageOrder(ImageOrderUpdateDto(displayItem.supaId, it))
-                    }
-                },
-                onFailure = {
-                    Logger.i { "Ranking single item failed: ${it.message}, retrying with full list" }
-                    ioScope.launch {
-                        val images = supabaseApi.fetchImages()
-
-                        val updatedImages = images.toMutableList()
-                        val currentIndex =
-                            updatedImages.indexOfFirst { it.id == displayItem.supaId }
-                        if (currentIndex != -1) {
-                            updatedImages.removeAt(currentIndex)
-                            val targetIndex = when {
-                                previousItem is DisplayItem.SupabaseItem -> {
-                                    val index =
-                                        updatedImages.indexOfFirst { it.id == previousItem.supaId }
-                                    if (index == -1) updatedImages.size else index + 1
-                                }
-
-                                nextItem is DisplayItem.SupabaseItem -> {
-                                    val index =
-                                        updatedImages.indexOfFirst { it.id == nextItem.supaId }
-                                    if (index == -1) 0 else index
-                                }
-
-                                else -> updatedImages.size
-                            }
-                            updatedImages.add(targetIndex, images[currentIndex])
-                        }
-
-
-                        rerank(updatedImages)
-                            .map { ImageOrderUpdateDto(id = it.id, order = it.order) }
-                            .let { supabaseApi.updateImageOrders(it) }
-                    }
-                }
-            )
-
-        }
+        if (displayItem !is DisplayItem.SupabaseItem) return
+        gridStore.move(
+            key = displayItem.key,
+            above = (previousItem as? DisplayItem.SupabaseItem)?.key,
+            below = (nextItem as? DisplayItem.SupabaseItem)?.key,
+        )
     }
 
-    private fun rerank(images: List<ImageDto>): List<ImageDto> {
-        return images.reversed()
-            .mapIndexed { index, image ->
-                image.copy(order = (index + 1) * Rank.GAP)
-            }
-    }
-
-    fun addPlaceholder() {
-        ioScope.launch {
-            SnackbarStateHolder.success("Adding placeholder...")
-            supabaseApi.putPlaceholder()
-            SnackbarStateHolder.success("Success!")
-        }
-    }
+    fun addPlaceholder() = gridStore.addPlaceholder()
 
     fun onDelete(item: DisplayItem) {
-        when (item) {
-            is DisplayItem.SupabaseItem -> {
-                ioScope.launch {
-                    supabaseApi.deleteImage(item.supaId)
-                    supabaseApi.fetchImages()
-                }
-            }
-
-            else -> Unit
-        }
+        if (item is DisplayItem.SupabaseItem) gridStore.delete(item.key)
     }
 
     fun hideImage(item: DisplayItem.InstaItem) {
@@ -244,27 +163,24 @@ class FeedComponent(componentContext: ComponentContext, private val onReset: () 
     }
 
     fun storeImages(bytes: List<Pair<ByteArray, String>>) {
-        bytes.forEach { addImage(it.first, it.second, storageOnly = true) }
+        bytes.forEach { (image, extension) ->
+            ioScope.launch {
+                SnackbarStateHolder.success("Uploading...")
+                supabaseApi.storeImage(image, extension)
+                SnackbarStateHolder.success("Success!")
+            }
+        }
     }
 
+    // Shows up right away, also offline, and uploads in the background
     fun addImages(bytes: List<Pair<ByteArray, String>>) {
-        bytes.forEach { addImage(it.first, it.second, storageOnly = false) }
-    }
-
-    fun addImage(bytes: ByteArray, extension: String, storageOnly: Boolean) {
         ioScope.launch {
-            SnackbarStateHolder.success("Uploading...")
-            supabaseApi.putImage(bytes = bytes, storageOnly = storageOnly, extension = extension)
-            SnackbarStateHolder.success("Success!")
+            bytes.forEach { (image, extension) -> gridStore.add(image, extension) }
         }
     }
 
     fun exchangeImage(value: DisplayItem.SupabaseItem?, url: String) {
-        ioScope.launch {
-            value?.let {
-                supabaseApi.exchangeImageUrl(it.supaId, url)
-            }
-        }
+        value?.let { gridStore.exchangeUrl(it.key, url) }
     }
 
     fun toggleBorders() {
@@ -281,18 +197,13 @@ class FeedComponent(componentContext: ComponentContext, private val onReset: () 
 
     fun reset() {
         prefs.clearUserInfo()
+        gridStore.clear()
         onReset()
     }
 }
 
-private fun List<ImageDto>.asItems(): List<DisplayItem.SupabaseItem> {
-    return map {
-        DisplayItem.SupabaseItem(
-            url = it.url,
-            supaId = it.id,
-            order = it.order
-        )
-    }
+private fun List<GridImage>.asItems(): List<DisplayItem.SupabaseItem> = map {
+    DisplayItem.SupabaseItem(key = it.key, url = it.url, order = it.order, file = it.file, pending = it.pending)
 }
 
 const val MAX_PINNED_POSTS = 3

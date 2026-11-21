@@ -33,12 +33,11 @@ import com.arkivanov.decompose.ExperimentalDecomposeApi
 import com.arkivanov.decompose.extensions.compose.lifecycle.LifecycleController
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import com.arkivanov.essenty.lifecycle.LifecycleRegistry
-import com.yannickpulver.gridline.data.api.SupabaseApi
+import com.yannickpulver.gridline.data.grid.GridStore
 import com.yannickpulver.gridline.di.initKoin
 import com.yannickpulver.gridline.ui.feed.Menu
 import com.yannickpulver.gridline.ui.theme.AppTheme
 import com.yannickpulver.gridline.ui.navigation.RootComponent
-import com.yannickpulver.gridline.ui.snackbar.SnackbarStateHolder
 import com.yannickpulver.gridline.utils.SparkleUpdater
 import com.yannickpulver.gridline.utils.runOnUiThread
 import kotlinx.coroutines.CoroutineScope
@@ -117,7 +116,7 @@ private fun Toolbar(rootComponent: RootComponent, modifier: Modifier = Modifier)
 
 @OptIn(ExperimentalComposeUiApi::class, ExperimentalFoundationApi::class)
 @Composable
-fun MainApp(rootComponent: RootComponent, supabaseApi: SupabaseApi = koinInject()) {
+fun MainApp(rootComponent: RootComponent, gridStore: GridStore = koinInject()) {
     val callback = remember {
         object : DragAndDropTarget {
 
@@ -142,10 +141,7 @@ fun MainApp(rootComponent: RootComponent, supabaseApi: SupabaseApi = koinInject(
 
                             CoroutineScope(Dispatchers.IO).launch {
                                 val file = File(path)
-                                SnackbarStateHolder.success("Uploading...")
-                                supabaseApi.putImage(file.readBytes(), file.extension)
-                                SnackbarStateHolder.success("Success!")
-                                supabaseApi.fetchImages()
+                                gridStore.add(file.readBytes(), file.extension)
                             }
                         }
                         return true

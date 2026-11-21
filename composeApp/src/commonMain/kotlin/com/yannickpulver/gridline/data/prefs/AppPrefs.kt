@@ -7,6 +7,7 @@ import com.russhwolf.settings.serialization.decodeValueOrNull
 import com.russhwolf.settings.serialization.encodeValue
 import com.russhwolf.settings.serialization.removeValue
 import com.yannickpulver.gridline.data.dto.InstaAccountDto
+import com.yannickpulver.gridline.data.grid.GridImage
 import com.yannickpulver.gridline.ui.feed.model.DisplayItem
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
@@ -19,6 +20,7 @@ import kotlin.time.Instant
 class AppPrefs(private val settings: Settings, private val clock: Clock = Clock.System) {
     private val InstaItemListSerializer = ListSerializer(DisplayItem.InstaItem.serializer())
     private val PinnedPostListSerializer = ListSerializer(PinnedPost.serializer())
+    private val GridImageListSerializer = ListSerializer(GridImage.serializer())
 
     /** The Gridline ID belongs to the Instagram account, so every device shows the same grid. */
     fun setInstaLogin(token: String, gridlineId: String) {
@@ -57,6 +59,14 @@ class AppPrefs(private val settings: Settings, private val clock: Clock = Clock.
         settings.encodeValue(InstaAccountDto.serializer(), KEY_ACCOUNT, account)
     }
 
+    /** The planned images, including changes that aren't in Supabase yet. */
+    fun getGrid(): List<GridImage> =
+        settings.decodeValueOrNull(GridImageListSerializer, KEY_GRID).orEmpty()
+
+    fun setGrid(images: List<GridImage>) {
+        settings.encodeValue(GridImageListSerializer, KEY_GRID, images)
+    }
+
     /** Instagram's API doesn't say which posts are pinned, so the user tells us. */
     fun getPinnedPosts(): List<PinnedPost> =
         settings.decodeValueOrNull(PinnedPostListSerializer, KEY_PINNED_POSTS).orEmpty()
@@ -91,6 +101,7 @@ class AppPrefs(private val settings: Settings, private val clock: Clock = Clock.
         // The Gridline ID stays: the next login links it to the account if the account has none yet
         settings.removeValue(InstaItemListSerializer, KEY_FEED)
         settings.removeValue(PinnedPostListSerializer, KEY_PINNED_POSTS)
+        settings.removeValue(GridImageListSerializer, KEY_GRID)
         settings.removeValue(InstaAccountDto.serializer(), KEY_ACCOUNT)
     }
 
@@ -105,6 +116,7 @@ class AppPrefs(private val settings: Settings, private val clock: Clock = Clock.
         const val KEY_PINNED_POSTS = "key-pinnedPosts"
         const val KEY_LINKED_SIGN_IN = "key-linkedSignIn"
         const val KEY_ACCOUNT = "key-account"
+        const val KEY_GRID = "key-grid"
     }
 }
 
