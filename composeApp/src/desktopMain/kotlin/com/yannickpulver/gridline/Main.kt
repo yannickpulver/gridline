@@ -3,25 +3,15 @@ package com.yannickpulver.gridline
 import androidx.compose.desktop.ui.tooling.preview.Preview
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.draganddrop.dragAndDropTarget
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import compose.icons.TablerIcons
-import compose.icons.tablericons.Dots
-import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draganddrop.DragAndDropEvent
 import androidx.compose.ui.draganddrop.DragAndDropTarget
 import androidx.compose.ui.draganddrop.DragData
 import androidx.compose.ui.draganddrop.dragData
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.MenuBar
@@ -31,11 +21,9 @@ import androidx.compose.ui.window.rememberWindowState
 import com.arkivanov.decompose.DefaultComponentContext
 import com.arkivanov.decompose.ExperimentalDecomposeApi
 import com.arkivanov.decompose.extensions.compose.lifecycle.LifecycleController
-import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import com.arkivanov.essenty.lifecycle.LifecycleRegistry
 import com.yannickpulver.gridline.data.grid.GridStore
 import com.yannickpulver.gridline.di.initKoin
-import com.yannickpulver.gridline.ui.feed.Menu
 import com.yannickpulver.gridline.ui.theme.AppTheme
 import com.yannickpulver.gridline.ui.navigation.RootComponent
 import com.yannickpulver.gridline.utils.SparkleUpdater
@@ -79,37 +67,8 @@ fun main() {
             // Resumes the lifecycle when the window gains focus, pauses it when focus is lost
             LifecycleController(lifecycle, windowState, LocalWindowInfo.current)
             AppTheme(useDarkTheme = false, dynamicColor = false) {
-                Box(Modifier.fillMaxSize()) {
-                    MainApp(rootComponent)
-                    Toolbar(rootComponent, modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 30.dp))
-                }
+                MainApp(rootComponent)
             }
-        }
-    }
-}
-
-@Composable
-private fun Toolbar(rootComponent: RootComponent, modifier: Modifier = Modifier) {
-    val childStack by rootComponent.childStack.subscribeAsState()
-    Row(
-        modifier,
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        val instance = childStack.active.instance
-        if (instance is RootComponent.Child.Feed) {
-            Menu(
-                addPlaceholder = { instance.component.addPlaceholder() },
-                editPinnedPosts = { instance.component.editPinnedPosts() },
-                reset = { instance.component.reset() },
-                toggleBorders = { instance.component.toggleBorders() },
-                icon = {
-                    Icon(
-                        imageVector = TablerIcons.Dots,
-                        contentDescription = "More",
-                        tint = Color.White
-                    )
-                })
         }
     }
 }

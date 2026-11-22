@@ -46,7 +46,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -73,8 +72,6 @@ import coil3.compose.SubcomposeAsyncImage
 import com.yannickpulver.gridline.data.dto.InstaAccountDto
 import com.yannickpulver.gridline.ui.feed.model.DisplayItem
 
-expect val hasHeader: Boolean
-
 @Composable
 fun FeedScreen(component: FeedComponent, modifier: Modifier = Modifier) {
     val state = component.state.collectAsState()
@@ -91,11 +88,7 @@ fun FeedScreen(component: FeedComponent, modifier: Modifier = Modifier) {
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        topBar = {
-            if (hasHeader) {
-                TopBar(state.value, component)
-            }
-        }
+        topBar = { TopBar(state.value, component) }
     ) {
         BoxWithConstraints(
             modifier = modifier.fillMaxSize().padding(top = it.calculateTopPadding())
@@ -103,48 +96,17 @@ fun FeedScreen(component: FeedComponent, modifier: Modifier = Modifier) {
             val isWide = maxWidth >= 600.dp
 
             val feedArea: @Composable () -> Unit = {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    // Without a header, the account sits above the grid
-                    if (!hasHeader) {
-                        state.value.account?.let {
-                            AccountTitle(it, Modifier.padding(horizontal = 16.dp, vertical = 12.dp))
-                        }
-                    }
-                    Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                        Feed(
-                            state = state.value,
-                            onMove = component::onMove,
-                            onDelete = component::onDelete,
-                            onItemClick = {
-                                selectedItem.value =
-                                    if (selectedItem.value?.key == it.key) null else it
-                            },
-                            showBorders = state.value.showBorders,
-                            onHide = component::hideImage
-                        )
-                        // With a header, adding images sits in it
-                        if (!hasHeader) {
-                            Box(
-                                modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                                    .navigationBarsPadding().padding(16.dp)
-                            ) {
-                                PhotoPickerWrapper(component::addImages) { onClick ->
-                                    FloatingActionButton(
-                                        onClick = onClick,
-                                        containerColor = Color.Black,
-                                        contentColor = Color.White,
-                                        modifier = Modifier.align(Alignment.Center)
-                                    ) {
-                                        Icon(
-                                            imageVector = TablerIcons.Plus,
-                                            contentDescription = null
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                Feed(
+                    state = state.value,
+                    onMove = component::onMove,
+                    onDelete = component::onDelete,
+                    onItemClick = {
+                        selectedItem.value =
+                            if (selectedItem.value?.key == it.key) null else it
+                    },
+                    showBorders = state.value.showBorders,
+                    onHide = component::hideImage
+                )
             }
 
             if (isWide) {
@@ -182,18 +144,19 @@ private fun TopBar(
     Column {
         Box(
             modifier = Modifier.fillMaxWidth().statusBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = 12.dp, vertical = 6.dp),
             contentAlignment = Alignment.Center
         ) {
             PhotoPickerWrapper(component::addImages) { onClick ->
                 IconButton(
                     onClick = onClick,
-                    modifier = Modifier.align(Alignment.CenterStart).size(40.dp)
+                    modifier = Modifier.align(Alignment.CenterStart).size(32.dp)
                 ) {
                     Icon(
                         imageVector = TablerIcons.Plus,
                         contentDescription = "Add images",
-                        tint = MaterialTheme.colorScheme.onSurface
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }
@@ -211,7 +174,8 @@ private fun TopBar(
                     Icon(
                         imageVector = TablerIcons.Dots,
                         contentDescription = "Menu",
-                        tint = MaterialTheme.colorScheme.onSurface
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(18.dp)
                     )
                 },
                 containerColor = Color.Transparent,
@@ -235,7 +199,7 @@ private fun AccountTitle(account: InstaAccountDto, modifier: Modifier = Modifier
                 model = url,
                 contentDescription = "Profile picture",
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.size(28.dp).clip(CircleShape)
+                modifier = Modifier.size(24.dp).clip(CircleShape)
                     .background(MaterialTheme.colorScheme.surfaceVariant)
             )
         }
@@ -511,8 +475,8 @@ fun Menu(
             IconButton(
                 onClick = { expanded = !expanded },
                 modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .size(32.dp)
+                    .clip(RoundedCornerShape(10.dp))
                     .background(containerColor)
             ) {
                 icon()
