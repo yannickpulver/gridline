@@ -12,6 +12,13 @@ import androidx.compose.ui.draganddrop.DragAndDropEvent
 import androidx.compose.ui.draganddrop.DragAndDropTarget
 import androidx.compose.ui.draganddrop.DragData
 import androidx.compose.ui.draganddrop.dragData
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEvent
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isMetaPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.MenuBar
@@ -23,6 +30,7 @@ import com.arkivanov.decompose.ExperimentalDecomposeApi
 import com.arkivanov.decompose.extensions.compose.lifecycle.LifecycleController
 import com.arkivanov.essenty.lifecycle.LifecycleRegistry
 import com.yannickpulver.gridline.data.grid.GridStore
+import com.yannickpulver.gridline.data.readClipboardImages
 import com.yannickpulver.gridline.di.initKoin
 import com.yannickpulver.gridline.ui.theme.AppTheme
 import com.yannickpulver.gridline.ui.navigation.RootComponent
@@ -56,6 +64,7 @@ fun main() {
             onCloseRequest = ::exitApplication,
             state = windowState,
             title = "Gridline",
+            onPreviewKeyEvent = ::pasteImages,
         ) {
             if (SparkleUpdater.isAvailable) {
                 MenuBar {
@@ -71,6 +80,15 @@ fun main() {
             }
         }
     }
+}
+
+/** Cmd+V adds copied images to the grid; anything else on the clipboard pastes as usual. */
+private fun pasteImages(event: KeyEvent): Boolean {
+    if (event.type != KeyEventType.KeyDown || event.key != Key.V || !(event.isMetaPressed || event.isCtrlPressed)) return false
+    val images = readClipboardImages().ifEmpty { return false }
+    val gridStore = koin.get<GridStore>()
+    CoroutineScope(Dispatchers.IO).launch { images.forEach { (bytes, extension) -> gridStore.add(bytes, extension) } }
+    return true
 }
 
 @OptIn(ExperimentalComposeUiApi::class, ExperimentalFoundationApi::class)
